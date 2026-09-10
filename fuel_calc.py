@@ -25,6 +25,7 @@ from caltex_core import (
     fetch_cny_hkd_rate,
     fetch_hk_prices,
     fetch_cn_98_price,
+    fetch_cn_98_price_showapi,
 )
 
 st.set_page_config(page_title="粵港油價對比計算器", page_icon="⛽", layout="wide")
@@ -65,16 +66,25 @@ mainland_discount = st.sidebar.number_input(
 
 st.sidebar.caption("提示：8 號 / 週三六優惠不疊加，系統自動取較大折扣；金額依當月海報調整。")
 st.sidebar.subheader("🌐 即時抓取（可選）")
-token = st.sidebar.text_input("起零數據 token（廣東 98#）", type="password", help="留空則以手動輸入為準")
+cn_source = st.sidebar.selectbox("內地油價來源", ["ShowAPI 今日油價（APPCODE）", "起零數據全國油價（token）"])
+use_showapi = cn_source.startswith("ShowAPI")
+cn_key = st.sidebar.text_input(
+    "APPCODE" if use_showapi else "起零數據 token",
+    type="password",
+    help="留空則以手動輸入為準",
+)
 if st.sidebar.button("↻ 抓取內地 98# 牌價"):
-    if token:
+    if cn_key:
         try:
-            mainland_base_price = fetch_cn_98_price(token)
+            if use_showapi:
+                mainland_base_price = fetch_cn_98_price_showapi(cn_key, prov="广东")
+            else:
+                mainland_base_price = fetch_cn_98_price(cn_key, province="广东")
             st.sidebar.success(f"已更新：¥{mainland_base_price:.2f}/L")
         except Exception as exc:
             st.sidebar.error(f"抓取失敗：{exc}")
     else:
-        st.sidebar.warning("請先填入起零數據 token。")
+        st.sidebar.warning("請先填入 " + ("APPCODE" if use_showapi else "起零數據 token") + "。")
 
 st.sidebar.subheader("🇭🇰 香港基準")
 hk_base_mode = st.sidebar.radio("香港比較基準", ["自動：加德士券後價", "手動：消委會折後價"], index=0)

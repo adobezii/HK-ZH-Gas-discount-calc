@@ -111,7 +111,11 @@ details summary{cursor:pointer;color:#8ab4f8;font-size:12px;margin-bottom:10px}
     <div class="grid">
       <div class="field"><label>8 號立減 (¥/L，依當月海報調整)</label><input id="disc8" type="number" min="0" step="0.01" value="2.18"></div>
       <div class="field"><label>週三/六立減 (¥/L)</label><input id="discWed" type="number" min="0" step="0.01" value="1.28"></div>
-      <div class="field"><label>起零數據 token（可選，留空則手動輸入）</label><input id="cnToken" type="text" placeholder="YOUR_TOKEN"></div>
+      <div class="field"><label>內地油價來源</label><select id="cnSource">
+        <option value="showapi">ShowAPI 今日油價（APPCODE）</option>
+        <option value="istero">起零數據全國油價（token）</option>
+      </select></div>
+      <div class="field"><label id="cnKeyLabel">APPCODE</label><input id="cnKey" type="password" placeholder="APPCODE"></div>
       <div class="field"><label>操作</label><div class="row">
         <button class="btn" id="btnCn" type="button">↻ 抓取內地油價</button>
         <button class="btn" id="btnFx" type="button">↻ 刷新匯率</button>
@@ -164,6 +168,7 @@ const FALLBACK = {
 };
 
 const CN_API = "https://api.istero.com/resource/v2/oilprice";
+const SHOWAPI_CN_URL = "https://ali-todayoil.showapi.com/todayoil";
 const FX_API = "https://api.exchangerate.fun/latest?base=CNY";
 const FX_API2 = "https://open.er-api.com/v6/latest/CNY";
 const PRICE_API = "https://hkg-deadline.github.io/hk-petrol-price-crawler/json/";
@@ -397,27 +402,76 @@ async function fetchFx() {
   compute();
 }
 
+// 在（可能嵌套的）物件中遞迴尋找 98# 價格欄位
+function extract98(item) {
+  if (Array.isArray(item)) {
+    for (const el of item) { const f = extract98(el); if (f != null) return f; }
+    return null;
+  }
+  if (!item || typeof item !== "object") return null;
+  for (const [key, val] of Object.entries(item)) {
+    const norm = String(key).toLowerCase().replace(/[_\- ]/g, "");
+    if (["p98", "98", "price98", "oil98", "p98price", "no98"].includes(norm)) {
+      const n = parseFloat(val);
+      if (!isNaN(n)) return n;
+    }
+    if (val && typeof val === "object") { const f = extract98(val); if (f != null) return f; }
+  }
+  return null;
+}
+
+// 解析 ShowAPI「今日油價」回應
+function parseShowapi(payload, prov) {
+  if (typeof payload === "string") payload = JSON.parse(payload);
+  if (!payload || typeof payload !== "object") throw new Error("回應格式非預期");
+  const code = payload.showapi_res_code;
+  if (code !== undefined && code !== 0 && code !== "0") {
+    throw new Error(payload.showapi_res_error || ("code=" + code));
+  }
+  const body = payload.showapi_res_body || payload;
+  const items = [];
+  for (const k of ["list", "data", "result", "rows", "items"]) {
+    if (Array.isArray(body[k])) items.push(...body[k]);
+    else if (body[k] && typeof body[k] === "object") items.push(body[k]);
+  }
+  items.push(body);
+  items.sort((a, b) => (String((a && a.prov) || "").trim() === prov ? 0 : 1) - (String((b && b.prov) || "").trim() === prov ? 0 : 1));
+  for (const it of items) { const p = extract98(it); if (p != null && p > 0) return p; }
+  throw new Error("找不到 98# 價格欄位");
+}
+
 async function fetchCnPrice() {
   const st = $("cnStatus");
-  const token = $("cnToken").value.trim();
-  if (!token) {
-    st.textContent = "⚠️ 請先展開「優惠規則 + API 設定」填入起零數據 token";
+  const source = $("cnSource").value;
+  const key = $("cnKey").value.trim();
+  if (!key) {
+    st.textContent = "⚠️ 請先展開「優惠規則 + API 設定」填入 " + (source === "showapi" ? "APPCODE" : "起零數據 token");
     st.className = "status err";
     return;
   }
   st.textContent = "載入中…"; st.className = "status loading";
   try {
-    const j = await (await fetch(CN_API + "?token=" + encodeURIComponent(token) + "&keyword=" + encodeURIComponent("广东"))).json();
-    if (j.data && j.data.p98 && j.data.p98.price) {
-      $("cnPrice").value = j.data.p98.price;
-      st.textContent = "✅ 已更新（" + (j.data.date || "廣東 98#") + "）";
+    if (source === "showapi") {
+      const res = await fetch(SHOWAPI_CN_URL + "?prov=" + encodeURIComponent("广东"), {
+        headers: { "Authorization": "APPCODE " + key }
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const price = parseShowapi(await res.text(), "广东");
+      $("cnPrice").value = price;
+      st.textContent = "✅ 已更新：廣東 98# ¥" + price + "/L（ShowAPI）";
       st.className = "status ok";
     } else {
-      st.textContent = "❌ 返回異常（code=" + (j.code || "?") + "），請手動輸入";
-      st.className = "status err";
+      const j = await (await fetch(CN_API + "?token=" + encodeURIComponent(key) + "&keyword=" + encodeURIComponent("广东"))).json();
+      if (j.data && j.data.p98 && j.data.p98.price) {
+        $("cnPrice").value = j.data.p98.price;
+        st.textContent = "✅ 已更新（" + (j.data.date || "廣東 98#") + "，起零數據）";
+        st.className = "status ok";
+      } else {
+        throw new Error("返回異常 code=" + (j.code || "?"));
+      }
     }
   } catch (e) {
-    st.textContent = "❌ 抓取失敗（CORS 或網絡），請手動輸入";
+    st.textContent = "❌ 抓取失敗（" + (e && e.message ? e.message : "CORS 或網絡") + "），請手動輸入";
     st.className = "status err";
   }
   compute();
@@ -458,6 +512,12 @@ function init() {
   $("btnPrice").addEventListener("click", fetchPrices);
   $("btnFx").addEventListener("click", fetchFx);
   $("btnCn").addEventListener("click", fetchCnPrice);
+  $("cnSource").addEventListener("change", () => {
+    const showapi = $("cnSource").value === "showapi";
+    $("cnKeyLabel").textContent = showapi ? "APPCODE" : "起零數據 token";
+    $("cnKey").placeholder = showapi ? "APPCODE" : "token";
+    $("cnKey").value = "";
+  });
 
   compute();
   fetchPrices();

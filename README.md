@@ -84,10 +84,11 @@ actualPrice     = amountPaid / totalLiters          # 券後每升實付
 |---|---|---|
 | 香港牌價／折扣卡／油券 | [hk-petrol-price-crawler](https://github.com/hkg-deadline/hk-petrol-price-crawler)（data.gov.hk 開放數據） | 消委會「油價資訊通」衍生資料 |
 | 匯率 CNY→HKD | [exchangerate.fun](https://exchangerate.fun)、open.er-api.com | 免費、免 API Key；失敗回退內置值 |
-| 內地 98# 油價 | 起零數據全國油價 V2（`api.istero.com`） | 需自行申請 token；留空則手動輸入 |
+| 內地 98# 油價（預設） | ShowAPI 今日油價（`ali-todayoil.showapi.com`，APPCODE 認證） | 需自行申請 APPCODE；允許 CORS，Web 版可直接呼叫 |
+| 內地 98# 油價（備選） | 起零數據全國油價 V2（`api.istero.com`，token 認證） | 需自行申請 token |
 | 香港折後價（手動） | 消委會「油價資訊通」 | 無公開 API，供手動輸入參考 |
 
-> 起零數據 token 由使用者自行申請填入，本專案不內置任何憑證。
+> 內地油價 API 的 APPCODE／token 由使用者自行申請填入，本專案不內置任何憑證；留空則手動輸入。
 
 ## 優惠規則（已確認）
 

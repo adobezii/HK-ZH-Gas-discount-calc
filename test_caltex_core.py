@@ -13,6 +13,7 @@ from caltex_core import (
     filter_coupons,
     date_discount,
     compare_cross_border,
+    parse_showapi_oilprice,
     FALLBACK_DISCOUNT_CARDS,
     FALLBACK_COUPONS,
 )
@@ -118,6 +119,53 @@ def test_compare_cross_border_not_worth():
     r = compare_cross_border(11.74, 0.0, 1.8, 340.0, 72.67, 15.0)
     assert r.breakeven_liters == float("inf")
     assert not r.worth_direct
+
+
+def test_parse_showapi_oilprice_list():
+    """ShowAPI 典型回應：showapi_res_body.list[].p98。"""
+    payload = {
+        "showapi_res_code": 0,
+        "showapi_res_error": "",
+        "showapi_res_body": {
+            "ret_code": 0,
+            "list": [
+                {"prov": "北京", "p92": "7.56", "p95": "8.05", "p98": "9.03"},
+                {"prov": "广东", "p92": "7.52", "p95": "8.15", "p98": "9.10"},
+            ],
+        },
+    }
+    assert approx(parse_showapi_oilprice(payload, "广东"), 9.10)
+    # 指定省份不存在時回退第一筆可解析值
+    assert approx(parse_showapi_oilprice(payload, "上海"), 9.03)
+
+
+def test_parse_showapi_oilprice_nested_and_str():
+    """價格藏在嵌套結構、且以字串表示時仍可解析。"""
+    payload = {
+        "showapi_res_code": 0,
+        "showapi_res_body": {"data": {"prov": "广东", "price": {"p98": "9.10"}}},
+    }
+    assert approx(parse_showapi_oilprice(payload), 9.10)
+    # 直接以 JSON 字串傳入
+    import json
+    assert approx(parse_showapi_oilprice(json.dumps(payload)), 9.10)
+
+
+def test_parse_showapi_oilprice_errors():
+    # 服務端回報錯誤
+    try:
+        parse_showapi_oilprice({"showapi_res_code": -1, "showapi_res_error": "appcode錯誤"})
+    except ValueError as exc:
+        assert "appcode錯誤" in str(exc)
+    else:
+        raise AssertionError("應拋出 ValueError")
+    # 找不到 98# 欄位
+    try:
+        parse_showapi_oilprice({"showapi_res_body": {"list": [{"prov": "广东", "p92": "7.52"}]}})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("應拋出 ValueError")
 
 
 if __name__ == "__main__":

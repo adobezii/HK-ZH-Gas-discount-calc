@@ -29,6 +29,7 @@ FALLBACK_COUPONS = [
 
 FALLBACK_PRICES = {"standard": 33.17, "premium": 34.97}
 FALLBACK_CNY_HKD = 1.1660  # 2026-09 參考值，聯網失敗時使用
+SHOWAPI_CN_URL = "https://ali-todayoil.showapi.com/todayoil"
 
 
 @dataclass
@@ -248,3 +249,119 @@ def fetch_cn_98_price(token, province="广东", timeout=6.0):
     if price is None:
         raise ValueError(f"起零數據返回異常：code={data.get('code')}")
     return float(price)
+
+
+# ===== 易源數據（ShowAPI）今日油價 =====
+_SHOWAPI_98_KEYS = ("p98", "98", "price98", "oil98", "p98price", "no98")
+
+
+def _extract_98_price(item):
+    """在單筆（可能嵌套的）油價資料中遞迴尋找 98# 價格欄位。"""
+    if isinstance(item, list):
+        for element in item:
+            found = _extract_98_price(element)
+            if found is not None:
+                return found
+        return None
+    if not isinstance(item, dict):
+        return None
+    for key, val in item.items():
+        norm = str(key).lower().replace("_", "").replace("-", "").replace(" ", "")
+        if norm in _SHOWAPI_98_KEYS:
+            try:
+                return float(val)
+            except (TypeError, ValueError):
+                pass
+        if isinstance(val, (dict, list)):
+            found = _extract_98_price(val)
+            if found is not None:
+                return found
+    return None
+
+
+def parse_showapi_oilprice(payload, prov="广东"):
+    """解析易源數據（ShowAPI）「今日油價」回應，取出指定省份 98# 汽油價（¥/L）。
+
+    兼容常見 schema：showapi_res_body.list[] / data[]，欄位 p98 / 98 / price98 等；
+    亦會遞迴搜尋嵌套結構。解析失敗時拋 ValueError。
+    """
+    import json
+
+    if isinstance(payload, (bytes, bytearray)):
+        payload = payload.decode("utf-8", "ignore")
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    if not isinstance(payload, dict):
+        raise ValueError("ShowAPI 回應格式非預期（非 JSON 物件）")
+
+    code = payload.get("showapi_res_code")
+    if code not in (0, "0", None):
+        raise ValueError("ShowAPI 回報錯誤：" + str(payload.get("showapi_res_error") or code))
+
+    body = payload.get("showapi_res_body", payload)
+    if isinstance(body, str):
+        body = json.loads(body)
+    if not isinstance(body, dict):
+        raise ValueError("ShowAPI 回應缺少 showapi_res_body")
+
+    items = []
+    for key in ("list", "data", "result", "rows", "items"):
+        val = body.get(key)
+        if isinstance(val, list):
+            items.extend(val)
+        elif isinstance(val, dict):
+            items.append(val)
+    items.append(body)
+
+    target = str(prov).strip()
+    ordered = sorted(
+        items,
+        key=lambda x: 0 if isinstance(x, dict) and str(x.get("prov", "")).strip() == target else 1,
+    )
+    for item in ordered:
+        price = _extract_98_price(item)
+        if price is not None and price > 0:
+            return price
+
+    keys = ", ".join(sorted(str(k) for k in body.keys()))
+    raise ValueError(f"找不到 98# 價格欄位（回應欄位：{keys}）")
+
+
+def _decode_json(raw):
+    """嘗試解析 JSON，必要時先解壓（gzip / deflate，兼容 ShowAPI oct-stream）。"""
+    import gzip
+    import json
+    import zlib
+
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except Exception:
+        pass
+    for fn in (
+        lambda b: gzip.decompress(b),
+        lambda b: zlib.decompress(b),
+        lambda b: zlib.decompress(b, -zlib.MAX_WBITS),
+    ):
+        try:
+            return json.loads(fn(raw).decode("utf-8"))
+        except Exception:
+            continue
+    raise ValueError("ShowAPI 回應無法解析為 JSON（可能非 JSON 或已損毀）")
+
+
+def fetch_cn_98_price_showapi(appcode, prov="广东", timeout=8.0):
+    """易源數據「今日油價」：以 APPCODE 認證抓取指定省份 98# 汽油價（¥/L）。"""
+    import urllib.parse
+    import urllib.request
+
+    url = SHOWAPI_CN_URL + "?" + urllib.parse.urlencode({"prov": prov})
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": "APPCODE " + appcode.strip(),
+            "User-Agent": "fuel-price-compare/1.0",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read()
+    return parse_showapi_oilprice(_decode_json(raw), prov)
