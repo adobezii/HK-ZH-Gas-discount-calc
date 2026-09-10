@@ -86,11 +86,11 @@ if st.sidebar.button("↻ 抓取內地 98# 牌價"):
     else:
         st.sidebar.warning("請先填入 " + ("APPCODE" if use_showapi else "起零數據 token") + "。")
 
-st.sidebar.subheader("🇭🇰 香港基準")
-hk_base_mode = st.sidebar.radio("香港比較基準", ["自動：加德士券後價", "手動：消委會折後價"], index=0)
+st.sidebar.subheader("🇭🇰 香港油價")
+hk_mode = st.sidebar.radio("香港油價模式", ["加德士券後價（拆單計算）", "手動輸入每升實付"], index=0)
 hk_caltex = None
 
-if hk_base_mode.startswith("自動"):
+if hk_mode.startswith("加德士"):
     st.sidebar.caption("加德士拆單計算設定")
     fuel_type = st.sidebar.radio("油品", ["standard（黃金平油）", "premium（白金 98）"], index=0)
     petrol = "standard" if "standard" in fuel_type else "premium"
@@ -118,7 +118,7 @@ if hk_base_mode.startswith("自動"):
     hk_caltex = calc_caltex_effective_price(list_price, card_discount, spend, coupon_value)
     hk_unit_price = hk_caltex.actual_price
 else:
-    hk_unit_price = st.sidebar.number_input("香港每升實付 (HKD)", value=23.99, step=0.1)
+    hk_unit_price = st.sidebar.number_input("香港每升實付 (HK$)", value=23.99, step=0.1)
 
 # ===== 核心計算 =====
 result = compare_cross_border(mainland_base_price, mainland_discount, rate_input, toll, fuel_volume, hk_unit_price)

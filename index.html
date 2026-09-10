@@ -106,8 +106,15 @@ details summary{display:inline-flex;align-items:center;min-height:44px;padding:2
 </header>
 
 <section class="card hk">
-  <h2><span class="badge b-hk">香港</span> 加德士折扣計數機（拆單券後實付）</h2>
-  <div class="grid">
+  <h2><span class="badge b-hk">香港</span> 香港油價（加德士券後價 / 手動輸入）</h2>
+  <div class="field" style="margin-bottom:12px">
+    <label>香港油價模式</label>
+    <div class="toggle red" id="hkModeToggle">
+      <button type="button" data-m="caltex" class="on">加德士券後價（拆單計算）</button>
+      <button type="button" data-m="manual">手動輸入每升實付</button>
+    </div>
+  </div>
+  <div class="grid" id="caltexFields">
     <div class="field" style="grid-column:1/-1">
       <label>油品</label>
       <div class="toggle red" id="petrolToggle">
@@ -124,12 +131,16 @@ details summary{display:inline-flex;align-items:center;min-height:44px;padding:2
       <button class="btn" id="btnPrice" type="button">↻ 抓取（hkg 爬蟲）</button>
     </div>
   </div>
+  <div class="field" id="hkManualFields" style="display:none;margin-top:12px">
+    <label>香港每升實付 (HK$)</label>
+    <input id="hkManualPrice" type="number" min="0" step="0.01" value="23.99">
+  </div>
   <div class="status" id="hkStatus"></div>
   <div class="results">
-    <div class="rbox"><div class="rl">折扣後單價</div><div class="rv">$<span id="hkDiscPrice">&ndash;</span></div><div class="rd">牌價 $<span id="hkListShow">&ndash;</span></div></div>
-    <div class="rbox"><div class="rl">每張券需入升數</div><div class="rv"><span id="hkLiters">&ndash;</span> L</div><div class="rd">免費 <span id="hkFreeLiters">&ndash;</span> L</div></div>
-    <div class="rbox"><div class="rl">每張券實付</div><div class="rv">$<span id="hkPaid">&ndash;</span></div><div class="rd">滿 $<span id="hkSpend">&ndash;</span> 減 $<span id="hkCouponVal">&ndash;</span></div></div>
-    <div class="rbox hk" style="grid-column:1/-1"><div class="rl">券後每升實付（比較基準）</div><div class="rv big">HK$<span id="hkEff">&ndash;</span> /L</div><div class="rd">每升節省 $<span id="hkSaving">&ndash;</span> · 加滿 <span id="tankShow">&ndash;</span>L 需拆單 <span id="splitCount">&ndash;</span> 次</div></div>
+    <div class="rbox caltexOnly"><div class="rl">折扣後單價</div><div class="rv">$<span id="hkDiscPrice">&ndash;</span></div><div class="rd">牌價 $<span id="hkListShow">&ndash;</span></div></div>
+    <div class="rbox caltexOnly"><div class="rl">每張券需入升數</div><div class="rv"><span id="hkLiters">&ndash;</span> L</div><div class="rd">免費 <span id="hkFreeLiters">&ndash;</span> L</div></div>
+    <div class="rbox caltexOnly"><div class="rl">每張券實付</div><div class="rv">$<span id="hkPaid">&ndash;</span></div><div class="rd">滿 $<span id="hkSpend">&ndash;</span> 減 $<span id="hkCouponVal">&ndash;</span></div></div>
+    <div class="rbox hk" style="grid-column:1/-1"><div class="rl" id="hkEffLabel">券後每升實付（比較基準）</div><div class="rv big">HK$<span id="hkEff">&ndash;</span> /L</div><div class="rd" id="hkEffDesc">&ndash;</div></div>
   </div>
 </section>
 <section class="card cn">
@@ -148,11 +159,6 @@ details summary{display:inline-flex;align-items:center;min-height:44px;padding:2
     <div class="field"><label>匯率 CNY → HKD</label><input id="fx" type="number" min="0.1" step="0.0001" value="1.16599"></div>
     <div class="field"><label>油箱容量 (L)</label><input id="tank" type="number" min="1" step="0.5" value="72.67"></div>
     <div class="field"><label>來回橋費 (HK$)</label><input id="bridge" type="number" min="0" step="10" value="340"></div>
-    <div class="field"><label>香港比較基準</label><select id="hkBase">
-      <option value="caltex">自動：加德士券後價</option>
-      <option value="manual">手動：消委會折後價</option>
-    </select></div>
-    <div class="field" id="hkManualField" style="display:none"><label>香港每升實付 (HK$)</label><input id="hkManual" type="number" min="0" step="0.01" value="23.99"></div>
   </div>
   <details>
     <summary>優惠規則 + API 設定</summary>
@@ -224,7 +230,7 @@ const PRICE_API = "https://hkg-deadline.github.io/hk-petrol-price-crawler/json/"
 let cards = FALLBACK.cards.slice();
 let coupons = FALLBACK.coupons.slice();
 let prices = Object.assign({}, FALLBACK.prices);
-let state = { petrol: "standard", card: "caltex-personal-StarCard", coupon: "starCard-350-50", trip: "direct", hkBase: "caltex" };
+let state = { petrol: "standard", card: "caltex-personal-StarCard", coupon: "starCard-350-50", trip: "direct", hkMode: "caltex" };
 let manualPrice = false;
 
 const $ = id => document.getElementById(id);
@@ -275,7 +281,10 @@ function applyAutoDiscount() {
 }
 // ===== 主計算與渲染 =====
 function compute() {
-  // ---- 香港加德士 ----
+  const tank = Math.max(num("tank"), 1);
+  const manualHk = state.hkMode === "manual";
+
+  // ---- 香港油價（加德士券後價 或 手動輸入）----
   const listPrice = num("hkList");
   const card = activeCard();
   const cardDisc = state.petrol === "standard" ? card.standardDiscount : card.premiumDiscount;
@@ -283,7 +292,15 @@ function compute() {
   const r = (listPrice > 0 && cardDisc >= 0 && cardDisc < listPrice && coupon.spend > 0)
     ? calcCaltex(listPrice, cardDisc, coupon.spend, coupon.discount)
     : null;
-  if (r) {
+
+  let hkPerL;
+  if (manualHk) {
+    hkPerL = Math.max(num("hkManualPrice"), 0);
+    $("hkEff").textContent = hkPerL.toFixed(2);
+    $("hkEffLabel").textContent = "手動輸入每升實付（比較基準）";
+    $("hkEffDesc").textContent = "香港油價：手動輸入" + (hkPerL > 0 ? "" : "（請輸入有效單價）");
+  } else if (r) {
+    hkPerL = r.actualPrice;
     $("hkDiscPrice").textContent = r.discountedPrice.toFixed(2);
     $("hkListShow").textContent = listPrice.toFixed(2);
     $("hkLiters").textContent = r.totalLiters.toFixed(3);
@@ -292,14 +309,18 @@ function compute() {
     $("hkSpend").textContent = coupon.spend;
     $("hkCouponVal").textContent = coupon.discount;
     $("hkEff").textContent = r.actualPrice.toFixed(2);
-    $("hkSaving").textContent = r.actualDiscount.toFixed(2);
+    $("hkEffLabel").textContent = "券後每升實付（比較基準）";
+    $("hkEffDesc").textContent = "每升節省 $" + r.actualDiscount.toFixed(2)
+      + " · 加滿 " + tank.toFixed(1) + "L 需拆單 " + Math.ceil(tank / r.totalLiters) + " 次";
   } else {
-    ["hkDiscPrice","hkListShow","hkLiters","hkFreeLiters","hkPaid","hkEff","hkSaving"].forEach(id => $(id).textContent = "—");
+    hkPerL = 0;
+    ["hkDiscPrice","hkListShow","hkLiters","hkFreeLiters","hkPaid"].forEach(id => $(id).textContent = "—");
     $("hkSpend").textContent = "—"; $("hkCouponVal").textContent = "—";
+    $("hkEff").textContent = "—";
+    $("hkEffDesc").textContent = "請檢查牌價與折扣設定";
   }
 
   // ---- 跨境北上 ----
-  const tank = Math.max(num("tank"), 1);
   const trip = state.trip;
   const toll = trip === "direct" ? Math.max(num("bridge"), 0) : 0;
   const cnNetCny = Math.max(num("cnPrice") - num("cnDisc"), 0);
@@ -307,15 +328,12 @@ function compute() {
   const cnNetHkd = cnNetCny * fx;
   const tollShare = toll / tank;
   const cnWithToll = cnNetHkd + tollShare;
-  const hkPerL = state.hkBase === "manual" ? Math.max(num("hkManual"), 0) : (r ? r.actualPrice : Math.max(num("hkManual"), 0));
 
   $("cnNetCny").textContent = cnNetCny.toFixed(2);
   $("cnNetHkd").textContent = cnNetHkd.toFixed(2);
   $("cnTollShare").textContent = tollShare.toFixed(2);
   $("cnWithToll").textContent = cnWithToll.toFixed(2);
-  $("tankShow").textContent = tank.toFixed(1);
   $("tankShow2").textContent = tank.toFixed(1);
-  $("splitCount").textContent = r ? Math.ceil(tank / r.totalLiters) : "—";
 
   const savePerL = hkPerL - cnWithToll;
   const saveTotal = savePerL * tank;
@@ -327,8 +345,9 @@ function compute() {
     + "（內地" + (trip === "direct" ? "含橋費" : "順路") + "）";
 
   // ---- 三方案對比表 ----
+  const hkRowName = manualHk ? "香港（手動輸入）" : "香港加德士（券後）";
   const totals = [
-    { name: "香港加德士（券後）", perL: hkPerL, total: hkPerL * tank },
+    { name: hkRowName, perL: hkPerL, total: hkPerL * tank },
     { name: "專程北上（含橋費）", perL: cnWithToll, total: cnNetHkd * tank + toll },
     { name: "順路北上（零橋費）", perL: cnNetHkd, total: cnNetHkd * tank }
   ];
@@ -390,14 +409,24 @@ function bindToggle(elId, key) {
     b.addEventListener("click", () => {
       el.querySelectorAll("button").forEach(x => x.classList.remove("on"));
       b.classList.add("on");
-      state[key] = b.dataset.p || b.dataset.t;
+      state[key] = b.dataset.p || b.dataset.t || b.dataset.m;
       if (key === "petrol") {
         if (!manualPrice) $("hkList").value = prices[state.petrol];
         updateCouponList();
       }
+      if (key === "hkMode") applyHkMode();
       compute();
     });
   });
+}
+
+// 依香港油價模式顯示／隱藏加德士拆單欄位
+function applyHkMode() {
+  const manual = state.hkMode === "manual";
+  $("caltexFields").style.display = manual ? "none" : "";
+  $("hkManualFields").style.display = manual ? "" : "none";
+  document.querySelectorAll(".caltexOnly").forEach(el => { el.style.display = manual ? "none" : ""; });
+  $("hkStatus").style.display = manual ? "none" : "";
 }
 
 // ===== API 抓取 =====
@@ -534,8 +563,10 @@ function init() {
 
   bindToggle("petrolToggle", "petrol");
   bindToggle("tripToggle", "trip");
+  bindToggle("hkModeToggle", "hkMode");
+  applyHkMode();
 
-  ["hkList", "customDisc", "cnPrice", "cnDisc", "fx", "tank", "bridge", "hkManual", "disc8", "discWed"].forEach(id => {
+  ["hkList", "customDisc", "cnPrice", "cnDisc", "fx", "tank", "bridge", "hkManualPrice", "disc8", "discWed"].forEach(id => {
     $(id).addEventListener("input", () => { if (id === "hkList") manualPrice = true; compute(); });
   });
 
@@ -550,12 +581,6 @@ function init() {
     compute();
   });
   $("couponSel").addEventListener("change", () => { state.coupon = $("couponSel").value; compute(); });
-
-  $("hkBase").addEventListener("change", () => {
-    state.hkBase = $("hkBase").value;
-    $("hkManualField").style.display = state.hkBase === "manual" ? "" : "none";
-    compute();
-  });
 
   $("btnPrice").addEventListener("click", fetchPrices);
   $("btnFx").addEventListener("click", fetchFx);
