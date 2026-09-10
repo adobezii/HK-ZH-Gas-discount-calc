@@ -166,9 +166,11 @@ details summary{display:inline-flex;align-items:center;min-height:44px;padding:2
       <div class="field"><label>8 號立減 (¥/L，依當月海報調整)</label><input id="disc8" type="number" min="0" step="0.01" value="2.18"></div>
       <div class="field"><label>週三/六立減 (¥/L)</label><input id="discWed" type="number" min="0" step="0.01" value="1.28"></div>
       <div class="field"><label>內地油價來源</label><select id="cnSource">
+        <option value="apihz">接口盒子 全國油價（id + key）</option>
         <option value="showapi">ShowAPI 今日油價（APPCODE）</option>
         <option value="istero">起零數據全國油價（token）</option>
       </select></div>
+      <div class="field" id="cnIdField" style="display:none"><label>開發者 ID</label><input id="cnId" type="text" placeholder="ID" autocomplete="off"></div>
       <div class="field"><label id="cnKeyLabel">APPCODE</label><input id="cnKey" type="password" placeholder="APPCODE"></div>
       <div class="field"><label>操作</label><div class="row">
         <button class="btn" id="btnCn" type="button">↻ 抓取內地油價</button>
@@ -223,6 +225,7 @@ const FALLBACK = {
 
 const CN_API = "https://api.istero.com/resource/v2/oilprice";
 const SHOWAPI_CN_URL = "https://ali-todayoil.showapi.com/todayoil";
+const APIHZ_CN_URL = "https://cn.apihz.cn/api/jinrong/youjia.php";
 const FX_API = "https://api.exchangerate.fun/latest?base=CNY";
 const FX_API2 = "https://open.er-api.com/v6/latest/CNY";
 const PRICE_API = "https://hkg-deadline.github.io/hk-petrol-price-crawler/json/";
@@ -521,14 +524,24 @@ async function fetchCnPrice() {
   const st = $("cnStatus");
   const source = $("cnSource").value;
   const key = $("cnKey").value.trim();
-  if (!key) {
-    st.textContent = "⚠️ 請先展開「優惠規則 + API 設定」填入 " + (source === "showapi" ? "APPCODE" : "起零數據 token");
+  const idVal = $("cnId").value.trim();
+  const needId = source === "apihz";
+  const keyName = needId ? "開發者 KEY" : (source === "showapi" ? "APPCODE" : "起零數據 token");
+  if (!key || (needId && !idVal)) {
+    st.textContent = "⚠️ 請先展開「優惠規則 + API 設定」填入 " + (needId ? "開發者 ID 與 KEY" : keyName);
     st.className = "status err";
     return;
   }
   st.textContent = "載入中…"; st.className = "status loading";
   try {
-    if (source === "showapi") {
+    if (source === "apihz") {
+      const q = new URLSearchParams({ id: idVal, key: key, sheng: "广东" });
+      const j = await (await fetch(APIHZ_CN_URL + "?" + q.toString())).json();
+      const price = parseApihz(j);
+      $("cnPrice").value = price;
+      st.textContent = "✅ 已更新：廣東 98# ¥" + price + "/L（接口盒子）";
+      st.className = "status ok";
+    } else if (source === "showapi") {
       const res = await fetch(SHOWAPI_CN_URL + "?prov=" + encodeURIComponent("广东"), {
         headers: { "Authorization": "APPCODE " + key }
       });
@@ -552,6 +565,33 @@ async function fetchCnPrice() {
     st.className = "status err";
   }
   compute();
+}
+
+// 解析接口盒子「全國油價查詢」回應（data1/data2/... 的第一個非 null 98）
+function parseApihz(payload) {
+  if (!payload || typeof payload !== "object") throw new Error("回應格式非預期");
+  if (payload.code !== 200 && payload.code !== "200") throw new Error(payload.msg || ("code=" + payload.code));
+  const zones = Object.keys(payload).filter(k => k.toLowerCase().startsWith("data")).sort();
+  for (const z of zones) {
+    const zone = payload[z];
+    if (zone && typeof zone === "object") {
+      const v = zone["98"];
+      if (v !== null && v !== undefined && v !== "" && v !== "null") {
+        const n = parseFloat(v);
+        if (!isNaN(n)) return n;
+      }
+    }
+  }
+  throw new Error("找不到 98# 價格欄位");
+}
+
+// 依內地油價來源切換欄位標籤與 ID 欄位顯示
+function applyCnSource() {
+  const src = $("cnSource").value;
+  const apihz = src === "apihz";
+  $("cnIdField").style.display = apihz ? "" : "none";
+  $("cnKeyLabel").textContent = apihz ? "開發者 KEY" : (src === "showapi" ? "APPCODE" : "起零數據 token");
+  $("cnKey").placeholder = apihz ? "KEY" : (src === "showapi" ? "APPCODE" : "token");
 }
 
 // ===== 初始化 =====
@@ -586,11 +626,11 @@ function init() {
   $("btnFx").addEventListener("click", fetchFx);
   $("btnCn").addEventListener("click", fetchCnPrice);
   $("cnSource").addEventListener("change", () => {
-    const showapi = $("cnSource").value === "showapi";
-    $("cnKeyLabel").textContent = showapi ? "APPCODE" : "起零數據 token";
-    $("cnKey").placeholder = showapi ? "APPCODE" : "token";
+    applyCnSource();
     $("cnKey").value = "";
+    $("cnId").value = "";
   });
+  applyCnSource();
 
   compute();
   fetchPrices();

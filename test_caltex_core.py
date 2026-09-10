@@ -14,6 +14,7 @@ from caltex_core import (
     date_discount,
     compare_cross_border,
     parse_showapi_oilprice,
+    parse_apihz_oilprice,
     FALLBACK_DISCOUNT_CARDS,
     FALLBACK_COUPONS,
 )
@@ -157,6 +158,37 @@ def test_parse_showapi_oilprice_errors():
         parse_showapi_oilprice({"showapi_res_code": -1, "showapi_res_error": "appcode錯誤"})
     except ValueError as exc:
         assert "appcode錯誤" in str(exc)
+    else:
+        raise AssertionError("應拋出 ValueError")
+
+
+def test_parse_apihz_oilprice():
+    """接口盒子回應：data1.98；多價區時取第一個非 null。"""
+    payload = {
+        "code": 200,
+        "sheng": "广东",
+        "date": "2026-09-10",
+        "data1": {"jq": "1", "area": "全省", "92": "7.52", "95": "8.15", "98": "9.10"},
+        "data2": {"98": None},
+    }
+    assert approx(parse_apihz_oilprice(payload), 9.10)
+    # data1 的 98 為 null → 取 data2
+    assert approx(parse_apihz_oilprice({"code": 200, "data1": {"98": None}, "data2": {"98": "9.25"}}), 9.25)
+    # 數字型別亦可
+    assert approx(parse_apihz_oilprice({"code": "200", "data1": {"98": 9.1}}), 9.1)
+
+
+def test_parse_apihz_oilprice_errors():
+    try:
+        parse_apihz_oilprice({"code": 400, "msg": "key錯誤"})
+    except ValueError as exc:
+        assert "key錯誤" in str(exc)
+    else:
+        raise AssertionError("應拋出 ValueError")
+    try:
+        parse_apihz_oilprice({"code": 200, "data1": {"92": "7.52"}})
+    except ValueError:
+        pass
     else:
         raise AssertionError("應拋出 ValueError")
     # 找不到 98# 欄位

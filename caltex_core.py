@@ -30,6 +30,7 @@ FALLBACK_COUPONS = [
 FALLBACK_PRICES = {"standard": 33.17, "premium": 34.97}
 FALLBACK_CNY_HKD = 1.1660  # 2026-09 參考值，聯網失敗時使用
 SHOWAPI_CN_URL = "https://ali-todayoil.showapi.com/todayoil"
+APIHZ_CN_URL = "https://cn.apihz.cn/api/jinrong/youjia.php"
 
 
 @dataclass
@@ -346,7 +347,7 @@ def _decode_json(raw):
             return json.loads(fn(raw).decode("utf-8"))
         except Exception:
             continue
-    raise ValueError("ShowAPI 回應無法解析為 JSON（可能非 JSON 或已損毀）")
+    raise ValueError("油價 API 回應無法解析為 JSON（可能非 JSON 或已損毀）")
 
 
 def fetch_cn_98_price_showapi(appcode, prov="广东", timeout=8.0):
@@ -365,3 +366,48 @@ def fetch_cn_98_price_showapi(appcode, prov="广东", timeout=8.0):
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         raw = resp.read()
     return parse_showapi_oilprice(_decode_json(raw), prov)
+
+
+# ===== 接口盒子（apihz.cn）全國油價 =====
+def parse_apihz_oilprice(payload, petrol="98"):
+    """解析接口盒子「全國油價查詢」回應，取出指定油品價格（元/升）。
+
+    回應結構：{code:200, sheng, date, data1:{92,95,98,...}, data2:{...}, ...}
+    多價區時依序取第一個非 null 的欄位值。解析失敗時拋 ValueError。
+    """
+    import json
+
+    if isinstance(payload, (bytes, bytearray)):
+        payload = payload.decode("utf-8", "ignore")
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    if not isinstance(payload, dict):
+        raise ValueError("接口盒子回應格式非預期（非 JSON 物件）")
+
+    code = payload.get("code")
+    if code not in (200, "200"):
+        raise ValueError("接口盒子回報錯誤：" + str(payload.get("msg") or code))
+
+    zones = sorted(str(k) for k in payload if str(k).lower().startswith("data"))
+    for zone_key in zones:
+        zone = payload.get(zone_key)
+        if isinstance(zone, dict):
+            val = zone.get(petrol)
+            if val not in (None, "", "null"):
+                try:
+                    return float(val)
+                except (TypeError, ValueError):
+                    pass
+    raise ValueError(f"找不到 {petrol}# 價格欄位（價區：{', '.join(zones) or '無'}）")
+
+
+def fetch_cn_98_price_apihz(dev_id, dev_key, sheng="广东", petrol="98", timeout=8.0):
+    """接口盒子全國油價：以 id + key 取得指定省份油品價（元/升）。"""
+    import urllib.parse
+    import urllib.request
+
+    url = APIHZ_CN_URL + "?" + urllib.parse.urlencode({"id": str(dev_id).strip(), "key": dev_key.strip(), "sheng": sheng})
+    req = urllib.request.Request(url, headers={"User-Agent": "fuel-price-compare/1.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read()
+    return parse_apihz_oilprice(_decode_json(raw), petrol)

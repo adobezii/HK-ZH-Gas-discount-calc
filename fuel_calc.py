@@ -26,6 +26,7 @@ from caltex_core import (
     fetch_hk_prices,
     fetch_cn_98_price,
     fetch_cn_98_price_showapi,
+    fetch_cn_98_price_apihz,
 )
 
 st.set_page_config(page_title="粵港油價對比計算器", page_icon="⛽", layout="wide")
@@ -66,17 +67,24 @@ mainland_discount = st.sidebar.number_input(
 
 st.sidebar.caption("提示：8 號 / 週三六優惠不疊加，系統自動取較大折扣；金額依當月海報調整。")
 st.sidebar.subheader("🌐 即時抓取（可選）")
-cn_source = st.sidebar.selectbox("內地油價來源", ["ShowAPI 今日油價（APPCODE）", "起零數據全國油價（token）"])
+cn_source = st.sidebar.selectbox(
+    "內地油價來源",
+    ["接口盒子 全國油價（id + key）", "ShowAPI 今日油價（APPCODE）", "起零數據全國油價（token）"],
+)
+use_apihz = cn_source.startswith("接口盒子")
 use_showapi = cn_source.startswith("ShowAPI")
+cn_id = st.sidebar.text_input("開發者 ID", help="接口盒子的數字 ID") if use_apihz else ""
 cn_key = st.sidebar.text_input(
-    "APPCODE" if use_showapi else "起零數據 token",
+    "開發者 KEY" if use_apihz else ("APPCODE" if use_showapi else "起零數據 token"),
     type="password",
     help="留空則以手動輸入為準",
 )
 if st.sidebar.button("↻ 抓取內地 98# 牌價"):
-    if cn_key:
+    if cn_key and (not use_apihz or cn_id):
         try:
-            if use_showapi:
+            if use_apihz:
+                mainland_base_price = fetch_cn_98_price_apihz(cn_id, cn_key, sheng="广东")
+            elif use_showapi:
                 mainland_base_price = fetch_cn_98_price_showapi(cn_key, prov="广东")
             else:
                 mainland_base_price = fetch_cn_98_price(cn_key, province="广东")
@@ -84,7 +92,7 @@ if st.sidebar.button("↻ 抓取內地 98# 牌價"):
         except Exception as exc:
             st.sidebar.error(f"抓取失敗：{exc}")
     else:
-        st.sidebar.warning("請先填入 " + ("APPCODE" if use_showapi else "起零數據 token") + "。")
+        st.sidebar.warning("請先填入 " + ("開發者 ID 與 KEY" if use_apihz else ("APPCODE" if use_showapi else "起零數據 token")) + "。")
 
 st.sidebar.subheader("🇭🇰 香港油價")
 hk_mode = st.sidebar.radio("香港油價模式", ["加德士券後價（拆單計算）", "手動輸入每升實付"], index=0)
