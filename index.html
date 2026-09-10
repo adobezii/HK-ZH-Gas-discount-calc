@@ -1,209 +1,470 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>加德士油價折扣計數機</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style type="text/tailwindcss">
-        @layer utilities {
-            .content-auto {
-                content-visibility: auto;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>跨境加油比價 · 加德士券後價 vs 內地延長殼牌 98</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang HK","Microsoft YaHei",sans-serif;background:#0f1117;color:#e8eaed;min-height:100vh;padding:24px 16px}
+.wrap{max-width:1000px;margin:0 auto}
+h1{font-size:22px;font-weight:600}
+.sub{font-size:13px;color:#9aa0a6;margin:4px 0 20px;line-height:1.6}
+.card{background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;padding:18px;margin-bottom:16px}
+.card h2{font-size:15px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12px;color:#9aa0a6}
+.field input,.field select{background:#0f1117;border:1px solid #2a2d3a;border-radius:8px;padding:9px 12px;color:#e8eaed;font-size:14px;outline:none;width:100%}
+.field input:focus,.field select:focus{border-color:#8ab4f8}
+.toggle{display:flex;background:#0f1117;border:1px solid #2a2d3a;border-radius:10px;padding:4px;gap:4px}
+.toggle button{flex:1;padding:8px 10px;border-radius:8px;border:none;background:transparent;color:#9aa0a6;font-size:13px;cursor:pointer;transition:all .15s}
+.toggle button.on{background:#8ab4f8;color:#0f1117;font-weight:600}
+.toggle.red button.on{background:#f28b82}
+.row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.btn{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-size:13px;background:#2a2d3a;color:#e8eaed}
+.btn:hover{opacity:.85}
+.btn:disabled{opacity:.5;cursor:default}
+.status{font-size:11px;margin-top:6px;min-height:14px;color:#9aa0a6}
+.ok{color:#81c995}.err{color:#f28b82}.loading{color:#fdd663}
+.results{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+@media(max-width:640px){.results{grid-template-columns:1fr 1fr}}
+.rbox{background:#0f1117;border-radius:10px;padding:14px;border-left:3px solid #8ab4f8}
+.rbox.green{border-left-color:#81c995}.rbox.yellow{border-left-color:#fdd663}.rbox.hk{border-left-color:#f28b82}
+.rl{font-size:11px;color:#9aa0a6;text-transform:uppercase;letter-spacing:.5px}
+.rv{font-size:24px;font-weight:700;margin:4px 0}
+.rv.big{font-size:30px}
+.rd{font-size:12px;color:#9aa0a6;line-height:1.5}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.b-wed{background:#1e3a5f;color:#8ab4f8}.b-8{background:#3d2e0a;color:#fdd663}.b-none{background:#2a2d3a;color:#9aa0a6}.b-hk{background:#3d1a1a;color:#f28b82}.b-cn{background:#0b3d2e;color:#81c995}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #2a2d3a}
+th{color:#9aa0a6;font-weight:500;font-size:12px}
+.saving{font-size:14px;font-weight:700}
+.saving.positive{color:#81c995}.saving.negative{color:#f28b82}
+.note{font-size:12px;color:#9aa0a6;line-height:1.7;margin-top:10px}
+footer{font-size:11px;color:#6b7280;text-align:center;padding:16px 0;line-height:1.8}
+footer a{color:#8ab4f8;text-decoration:none}
+details{margin-top:14px;font-size:12px;color:#9aa0a6}
+details summary{cursor:pointer;color:#8ab4f8;font-size:12px;margin-bottom:10px}
+</style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-300 font-sans antialiased selection:bg-red-500 selection:text-white flex flex-col justify-between">
+<body>
+<div class="wrap">
+<header>
+  <h1>⛽ 跨境加油比價 · 加德士券後價 vs 內地延長殼牌 98</h1>
+  <div class="sub">自動計算加德士拆單券後實付（私人能源卡 + 滿 $350 減 $50）· 內地 V-Power 98 折後價 · 即時匯率 · 橋費攤分。規則：週三/六 與 8 號優惠不疊加、取最平；V-Power 98 與加德士 98 視為同級。</div>
+</header>
 
-    <div class="max-w-3xl mx-auto px-8 py-8 sm:py-12 w-full">
-        <!-- Header -->
-        <header class="flex justify-between items-center mb-8 pb-4 border-b border-slate-200 dark:border-slate-800">
-            <div class="flex items-center space-x-3">
-                <div>
-                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">加德士油價折扣計數機</h1>
-                </div>
-            </div>
-
-            <!-- Theme Toggle Button -->
-            <button id="theme-toggle" aria-label="Toggle Theme" class="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500">
-                <!-- Sun Icon (shown in dark mode) -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="hidden dark:block h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                <!-- Moon Icon (shown in light mode) -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="block dark:hidden h-5 w-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-            </button>
-        </header>
-
-        <!-- Main Card -->
-        <main class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden transition-colors duration-300">
-            
-            <!-- TOP SECTION: Fuel Type Toggle Buttons -->
-            <div class="bg-slate-100/80 dark:bg-slate-800/60 p-4 border-b border-slate-200 dark:border-slate-800">
-                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2.5">
-                    選擇燃油種類
-                </label>
-                <!-- Hidden select box maintained for JS compatibility -->
-                <select id="petrol" class="hidden">
-                    <option value="standard" selected>黃金（平油）</option>
-                    <option value="premium">白金（貴油）</option>
-                </select>
-
-                <!-- High-Contrast Button Toggle UI -->
-                <div class="grid grid-cols-2 gap-2 bg-slate-200 dark:bg-slate-950 p-1.5 rounded-xl border border-slate-300/80 dark:border-slate-800">
-                    <button type="button" id="btn-standard" onclick="selectPetrol('standard')" class="py-2.5 px-4 rounded-lg font-bold text-sm transition-all duration-200 shadow-md bg-red-600 dark:bg-red-500 text-white shadow-red-500/25">
-                        黃金（平油）
-                    </button>
-                    <button type="button" id="btn-premium" onclick="selectPetrol('premium')" class="py-2.5 px-4 rounded-lg font-medium text-sm transition-all duration-200 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
-                        白金（貴油）
-                    </button>
-                </div>
-            </div>
-
-            <div class="p-6 sm:p-8 space-y-6">
-
-                <!-- Discount Card Selection -->
-                <div class="space-y-2">
-                    <label for="discountCards" class="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        折扣卡
-                    </label>
-                    <div class="relative">
-                        <select id="discountCards" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm rounded-xl px-4 py-3 appearance-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition">
-                            <!-- Options populated dynamically -->
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                    </div>
-
-                    <!-- Custom Discount Div -->
-                    <div id="customDiscountDiv" class="hidden mt-3 p-4 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 space-y-2">
-                        <label for="customDiscount" class="block text-xs font-medium text-slate-600 dark:text-slate-400">自訂每升折扣 ($)</label>
-                        <input type="number" id="customDiscount" step="0.01" min="0" value="0" placeholder="e.g., 1.50" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500">
-                    </div>
-                </div>
-
-                <!-- Coupon Selection -->
-                <div class="space-y-2">
-                    <label for="coupons" class="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        油劵
-                    </label>
-                    <div class="relative">
-                        <select id="coupons" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm rounded-xl px-4 py-3 appearance-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition">
-                            <!-- Options populated dynamically -->
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Calculate Button -->
-                <div class="pt-2">
-                    <button onclick="handleCalculate()" class="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-600 text-white font-semibold py-3.5 px-6 rounded-xl shadow-lg shadow-red-500/25 active:scale-[0.99] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900">
-                        計算折扣
-                    </button>
-                </div>
-
-                <!-- Error Message -->
-                <div id="error" class="hidden p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 text-sm"></div>
-
-                <!-- Results Block -->
-                <div id="results" class="hidden pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 space-y-6 focus:outline-none" tabindex="-1">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-                            <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-                            <span>計算結果</span>
-                        </h3>
-                        <span class="text-x text-slate-900 dark:text-white">燃油：<span id="petrolSelected">0</span></span>
-                    </div>
-
-                    <!-- Highlight Stats Grid (3 Cards) -->
-                    <div id="statsGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <!-- 1st: 入油量 -->
-                        <div class="relative overflow-hidden p-3.5 sm:p-4 rounded-xl bg-gradient-to-b from-amber-50/80 to-amber-100/50 dark:from-amber-950/40 dark:to-amber-900/20 border border-amber-200/80 dark:border-amber-800/40 shadow-sm transition-transform duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
-                            <span class="block text-lg font-semibold text-amber-700 dark:text-amber-300 mb-1">入油量</span>
-                            <div class="text-2xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 tracking-tight"><span id="totalLiters">0</span> <span class="text-xs font-normal">升</span></div>
-                        </div>
-
-                        <!-- 2nd: 支付金額 -->
-                        <div class="relative overflow-hidden p-3.5 sm:p-4 rounded-xl bg-gradient-to-b from-red-50/80 to-red-100/50 dark:from-red-950/40 dark:to-red-900/20 border border-red-200/80 dark:border-red-800/40 shadow-sm transition-transform duration-200 hover:-translate-y-0.5 flex flex-col justify-between">
-                            <div class="flex items-center justify-between mb-0.5">
-                                <span class="block text-lg font-semibold text-red-700 dark:text-red-300 mb-1">費用</span>
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[12px] font-bold bg-blue-600 text-white uppercase tracking-wider">於月結單顯示</span>
-                            </div>
-                            <div class="text-2xl sm:text-2xl font-black text-red-600 dark:text-red-400 tracking-tight">$<span id="amountPaid">0</span></div>
-                        </div>
-
-                    <!-- 3rd: 實際油價 -->
-                        <div class="relative overflow-hidden p-4 rounded-xl bg-gradient-to-br from-red-600 to-amber-500 text-white shadow-lg shadow-red-500/20 flex flex-col justify-between border border-red-400">
-                            <div class="flex items-center justify-between z-10">
-                                <span class="text-lg font-black uppercase text-white-600">
-                                    實際油價
-                                </span>
-                                <span class="text-xs font-bold bg-white text-red-600 px-1.5 py-0.5 rounded-full shadow-sm">
-                                    減 $<span id="actualDiscount">0</span>
-                                </span>
-                            </div>
-
-                            <div class="mt-3 z-10">
-                                <div class="text-x font-medium text-red-100/90 flex items-center space-x-1">
-                                    <span>牌價:</span>
-                                    <span class="line-through text-red-200/80 font-bold decoration-2 decoration-amber-300">$<span id="gridListPrice">0</span></span>
-                                </div>
-                                
-                                <!-- 實際油價 -->
-                                <div class="text-3xl sm:text-4xl font-black tracking-tight text-white drop-shadow-md flex items-baseline">
-                                    <span class="text-xl mr-0.5">$</span>
-                                    <span id="actualPrice">0</span>
-                                    <span class="text-xs font-bold text-white-100 ml-1">/升</span>
-                                </div>
-                            </div>
-                        </div>
-
-                    <!-- Breakdown Details List -->
-                    
-                </div>
-
-            </div>
-        </main>
+<section class="card hk">
+  <h2><span class="badge b-hk">香港</span> 加德士折扣計數機（拆單券後實付）</h2>
+  <div class="grid">
+    <div class="field" style="grid-column:1/-1">
+      <label>油品</label>
+      <div class="toggle red" id="petrolToggle">
+        <button type="button" data-p="standard" class="on">黃金（平油）</button>
+        <button type="button" data-p="premium">白金（貴油 98）</button>
+      </div>
     </div>
+    <div class="field"><label>折扣卡</label><select id="cardSel"></select></div>
+    <div class="field" id="customDiscField" style="display:none"><label>自訂每升折扣 (HK$)</label><input id="customDisc" type="number" min="0" step="0.1" value="0"></div>
+    <div class="field"><label>油券</label><select id="couponSel"></select></div>
+    <div class="field"><label>加德士牌價 (HK$/L)</label><input id="hkList" type="number" min="0" step="0.01" value="33.17"></div>
+    <div class="field">
+      <label>自動抓取最新牌價</label>
+      <button class="btn" id="btnPrice" type="button">↻ 抓取（hkg 爬蟲）</button>
+    </div>
+  </div>
+  <div class="status" id="hkStatus"></div>
+  <div class="results">
+    <div class="rbox"><div class="rl">折扣後單價</div><div class="rv">$<span id="hkDiscPrice">&ndash;</span></div><div class="rd">牌價 $<span id="hkListShow">&ndash;</span></div></div>
+    <div class="rbox"><div class="rl">每張券需入升數</div><div class="rv"><span id="hkLiters">&ndash;</span> L</div><div class="rd">免費 <span id="hkFreeLiters">&ndash;</span> L</div></div>
+    <div class="rbox"><div class="rl">每張券實付</div><div class="rv">$<span id="hkPaid">&ndash;</span></div><div class="rd">滿 $<span id="hkSpend">&ndash;</span> 減 $<span id="hkCouponVal">&ndash;</span></div></div>
+    <div class="rbox hk" style="grid-column:1/-1"><div class="rl">券後每升實付（比較基準）</div><div class="rv big">HK$<span id="hkEff">&ndash;</span> /L</div><div class="rd">每升節省 $<span id="hkSaving">&ndash;</span> · 加滿 <span id="tankShow">&ndash;</span>L 需拆單 <span id="splitCount">&ndash;</span> 次</div></div>
+  </div>
+</section>
+<section class="card cn">
+  <h2><span class="badge b-cn">內地</span> 跨境北上比價（延長殼牌 V-Power 98）</h2>
+  <div class="grid">
+    <div class="field">
+      <label>行程模式</label>
+      <div class="toggle" id="tripToggle">
+        <button type="button" data-t="direct" class="on">專程北上（含橋費）</button>
+        <button type="button" data-t="pass">順路北上（零橋費）</button>
+      </div>
+    </div>
+    <div class="field"><label>加油日期（自動套用優惠）</label><input id="fuelDate" type="date"></div>
+    <div class="field"><label>內地 98# 原價 (¥/L)</label><input id="cnPrice" type="number" min="0" step="0.01" value="11.74"></div>
+    <div class="field"><label>每升立減 (¥/L) — <span id="discLabel" class="badge b-none">無優惠</span></label><input id="cnDisc" type="number" min="0" step="0.01" value="0"></div>
+    <div class="field"><label>匯率 CNY → HKD</label><input id="fx" type="number" min="0.1" step="0.0001" value="1.16599"></div>
+    <div class="field"><label>油箱容量 (L)</label><input id="tank" type="number" min="1" step="0.5" value="72.67"></div>
+    <div class="field"><label>來回橋費 (HK$)</label><input id="bridge" type="number" min="0" step="10" value="340"></div>
+    <div class="field"><label>香港比較基準</label><select id="hkBase">
+      <option value="caltex">自動：加德士券後價</option>
+      <option value="manual">手動：消委會折後價</option>
+    </select></div>
+    <div class="field" id="hkManualField" style="display:none"><label>香港每升實付 (HK$)</label><input id="hkManual" type="number" min="0" step="0.01" value="23.99"></div>
+  </div>
+  <details>
+    <summary>優惠規則 + API 設定</summary>
+    <div class="grid">
+      <div class="field"><label>8 號立減 (¥/L，依當月海報調整)</label><input id="disc8" type="number" min="0" step="0.01" value="2.18"></div>
+      <div class="field"><label>週三/六立減 (¥/L)</label><input id="discWed" type="number" min="0" step="0.01" value="1.28"></div>
+      <div class="field"><label>起零數據 token（可選，留空則手動輸入）</label><input id="cnToken" type="text" placeholder="YOUR_TOKEN"></div>
+      <div class="field"><label>操作</label><div class="row">
+        <button class="btn" id="btnCn" type="button">↻ 抓取內地油價</button>
+        <button class="btn" id="btnFx" type="button">↻ 刷新匯率</button>
+      </div></div>
+    </div>
+    <div class="status" id="cnStatus"></div>
+    <div class="status" id="fxStatus"></div>
+  </details>
+  <div class="results">
+    <div class="rbox green"><div class="rl">內地折後純油價</div><div class="rv">HK$<span id="cnNetHkd">&ndash;</span></div><div class="rd">¥<span id="cnNetCny">&ndash;</span>/L</div></div>
+    <div class="rbox yellow"><div class="rl">攤分橋費</div><div class="rv">HK$<span id="cnTollShare">&ndash;</span></div><div class="rd">每升（僅專程北上）</div></div>
+    <div class="rbox"><div class="rl">計入橋費單價</div><div class="rv">HK$<span id="cnWithToll">&ndash;</span></div><div class="rd">對比香港基準</div></div>
+    <div class="rbox green" style="grid-column:1/-1"><div class="rl">一箱（<span id="tankShow2">&ndash;</span>L）節省</div><div class="saving positive rv big" id="cnSaving">&ndash;</div><div class="rd" id="cnSavingDetail">&ndash;</div></div>
+  </div>
+</section>
 
-    <!-- Footer --> 
-    <footer class="py-6 mt-8 border-t border-slate-200 dark:border-slate-800/80 text-center text-xs text-slate-500 dark:text-slate-400">
-        <!-- first row -->
-        <div class="max-w-2xl mx-auto px-4 flex items-center justify-center space-x-2">
-            <!-- GitHub URL -->
-            <a href="https://github.com/hkg-deadline/caltex-discount-calc" target="_blank" rel="noopener noreferrer" class="inline-flex items-center space-x-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 rounded-lg px-2 py-1">
-                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
-                    <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
-                </svg>
-                <span class="font-medium">原始碼</span>
-            </a>
-            <span class="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
+<section class="card">
+  <h2>📊 三方案對比結論</h2>
+  <div style="overflow-x:auto">
+  <table id="summaryTable">
+    <thead><tr><th>方案</th><th>每升成本</th><th>總支出</th><th>相對香港券後價</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  </div>
+  <div class="note" id="breakevenNote"></div>
+</section>
 
-            <!-- GPL-3.0 License Badge / Link -->
-            <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer" class="inline-flex items-center space-x-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 rounded-lg px-2 py-1">
-                <svg class="w-4 h-4 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                </svg>
-                <span><strong class="font-semibold text-slate-700 dark:text-slate-300">GPL-3.0</strong> License</span>
-            </a>
-        </div>
-        <!-- second row -->
-        <div class="max-w-2xl mx-auto px-4 flex items-center justify-center space-x-2">
-            <!-- Petrol Price Data Soruce-->
-            <a href="https://data.gov.hk" target="_blank" rel="noopener noreferrer" class="inline-flex items-center space-x-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 rounded-lg px-2 py-1">
-                <span class="font-medium">燃油價格資料來源：開放數據平台 (https://data.gov.hk)</span>
-            </a>
-        </div>
-    </footer>
-    <!-- External JavaScript files -->
-    <script src="./js/themeChange.js"></script>
-    <script src="./js/tailwind.js"></script>
-    <script src="./js/main.js"></script>
+<footer>
+  資料來源：香港牌價／折扣卡／油券 — <a href="https://github.com/hkg-deadline/hk-petrol-price-crawler" target="_blank" rel="noopener">hk-petrol-price-crawler</a>（data.gov.hk 開放數據）· 匯率 — exchangerate.fun／open.er-api.com · 內地油價 — 起零數據（需 token）<br>
+  加德士折扣算法移植自 <a href="https://github.com/hkg-deadline/caltex-discount-calc" target="_blank" rel="noopener">hkg-deadline/caltex-discount-calc</a>（GPL-3.0）· 本工具僅供個人參考，價格以油站實際為準。
+</footer>
+</div>
+<script>
+'use strict';
+
+// ===== 內置備用數據（離線 / API 失敗時使用）=====
+const FALLBACK = {
+  cards: [
+    {id:"caltex-personal-StarCard",type:"starCard",description:"私人能源卡：黃金減$11 / 白金減$12",standardDiscount:11,premiumDiscount:12},
+    {id:"caltex-personal-StarCard2",type:"starCard",description:"私人能源卡：黃金減$11.5 / 白金減$12",standardDiscount:11.5,premiumDiscount:12},
+    {id:"hsbc-credit-card",type:"hsbc",description:"滙豐信用卡：黃金/白金減$0.9",standardDiscount:0.9,premiumDiscount:0.9},
+    {id:"starCard-others",type:"starCard",description:"其他私人能源卡（自訂折扣）",standardDiscount:0,premiumDiscount:0}
+  ],
+  coupons: [
+    {id:"starCard-350-50",description:"私人能源卡 - 入滿$350減$50",spend:350,discount:50,validCardType:"starCard",validFor:["standard","premium"]},
+    {id:"hsbc-permium-800-300",description:"滙豐信用卡 - 白金入滿$800減$300",spend:800,discount:300,validCardType:"hsbc",validFor:["premium"]},
+    {id:"hsbc-standard-800-280",description:"滙豐信用卡 - 黃金入滿$800減$280",spend:800,discount:280,validCardType:"hsbc",validFor:["standard"]}
+  ],
+  prices: { standard: 33.17, premium: 34.97 }
+};
+
+const CN_API = "https://api.istero.com/resource/v2/oilprice";
+const FX_API = "https://api.exchangerate.fun/latest?base=CNY";
+const FX_API2 = "https://open.er-api.com/v6/latest/CNY";
+const PRICE_API = "https://hkg-deadline.github.io/hk-petrol-price-crawler/json/";
+
+let cards = FALLBACK.cards.slice();
+let coupons = FALLBACK.coupons.slice();
+let prices = Object.assign({}, FALLBACK.prices);
+let state = { petrol: "standard", card: "caltex-personal-StarCard", coupon: "starCard-350-50", trip: "direct", hkBase: "caltex" };
+let manualPrice = false;
+
+const $ = id => document.getElementById(id);
+const num = id => parseFloat($(id).value) || 0;
+
+// ===== 加德士核心算法（移植自 caltex-discount-calc / js/main.js）=====
+function calcCaltex(listPrice, cardDiscount, spend, couponValue) {
+  const discountedPrice = listPrice - cardDiscount;
+  const totalLiters = spend / listPrice;              // 達門檻所需升數（按牌價計）
+  const paidLiters = (spend - couponValue) / listPrice;
+  const freeLiters = totalLiters - paidLiters;
+  const amountPaid = paidLiters * discountedPrice;
+  const actualPrice = amountPaid / totalLiters;       // 券後每升實付
+  return { discountedPrice, totalLiters, paidLiters, freeLiters, amountPaid, actualPrice, actualDiscount: listPrice - actualPrice };
+}
+
+function activeCard() {
+  if (state.card === "starCard-others") return { type: "starCard", standardDiscount: num("customDisc"), premiumDiscount: num("customDisc") };
+  return cards.find(c => c.id === state.card) || cards[0];
+}
+
+function activeCoupon() {
+  const c = coupons.find(c => c.id === state.coupon);
+  return c || { spend: 350, discount: 0 };
+}
+
+// 日期優惠：週三/六 與 8 號不疊加，取較大折扣
+function dateDiscount() {
+  const d = new Date($("fuelDate").value || new Date().toISOString().slice(0, 10));
+  const day = d.getDate(), wd = d.getDay();
+  const d8 = num("disc8"), dw = num("discWed");
+  const hit8 = day === 8, hitWed = (wd === 3 || wd === 6);
+  if (hit8 && hitWed) {
+    const best = Math.max(d8, dw);
+    return { discount: best, label: "8號+週三/六同時（取最平 -¥" + best.toFixed(2) + "）", cls: d8 >= dw ? "b-8" : "b-wed" };
+  }
+  if (hit8) return { discount: d8, label: "8 號特惠 -¥" + d8.toFixed(2), cls: "b-8" };
+  if (hitWed) return { discount: dw, label: "週三/六特惠 -¥" + dw.toFixed(2), cls: "b-wed" };
+  return { discount: 0, label: "無優惠", cls: "b-none" };
+}
+
+function applyAutoDiscount() {
+  const d = dateDiscount();
+  $("cnDisc").value = d.discount.toFixed(2);
+  const lbl = $("discLabel");
+  lbl.textContent = d.label;
+  lbl.className = "badge " + d.cls;
+}
+// ===== 主計算與渲染 =====
+function compute() {
+  // ---- 香港加德士 ----
+  const listPrice = num("hkList");
+  const card = activeCard();
+  const cardDisc = state.petrol === "standard" ? card.standardDiscount : card.premiumDiscount;
+  const coupon = activeCoupon();
+  const r = (listPrice > 0 && cardDisc >= 0 && cardDisc < listPrice && coupon.spend > 0)
+    ? calcCaltex(listPrice, cardDisc, coupon.spend, coupon.discount)
+    : null;
+  if (r) {
+    $("hkDiscPrice").textContent = r.discountedPrice.toFixed(2);
+    $("hkListShow").textContent = listPrice.toFixed(2);
+    $("hkLiters").textContent = r.totalLiters.toFixed(3);
+    $("hkFreeLiters").textContent = r.freeLiters.toFixed(3);
+    $("hkPaid").textContent = r.amountPaid.toFixed(2);
+    $("hkSpend").textContent = coupon.spend;
+    $("hkCouponVal").textContent = coupon.discount;
+    $("hkEff").textContent = r.actualPrice.toFixed(2);
+    $("hkSaving").textContent = r.actualDiscount.toFixed(2);
+  } else {
+    ["hkDiscPrice","hkListShow","hkLiters","hkFreeLiters","hkPaid","hkEff","hkSaving"].forEach(id => $(id).textContent = "—");
+    $("hkSpend").textContent = "—"; $("hkCouponVal").textContent = "—";
+  }
+
+  // ---- 跨境北上 ----
+  const tank = Math.max(num("tank"), 1);
+  const trip = state.trip;
+  const toll = trip === "direct" ? Math.max(num("bridge"), 0) : 0;
+  const cnNetCny = Math.max(num("cnPrice") - num("cnDisc"), 0);
+  const fx = Math.max(num("fx"), 0.1);
+  const cnNetHkd = cnNetCny * fx;
+  const tollShare = toll / tank;
+  const cnWithToll = cnNetHkd + tollShare;
+  const hkPerL = state.hkBase === "manual" ? Math.max(num("hkManual"), 0) : (r ? r.actualPrice : Math.max(num("hkManual"), 0));
+
+  $("cnNetCny").textContent = cnNetCny.toFixed(2);
+  $("cnNetHkd").textContent = cnNetHkd.toFixed(2);
+  $("cnTollShare").textContent = tollShare.toFixed(2);
+  $("cnWithToll").textContent = cnWithToll.toFixed(2);
+  $("tankShow").textContent = tank.toFixed(1);
+  $("tankShow2").textContent = tank.toFixed(1);
+  $("splitCount").textContent = r ? Math.ceil(tank / r.totalLiters) : "—";
+
+  const savePerL = hkPerL - cnWithToll;
+  const saveTotal = savePerL * tank;
+  const sv = $("cnSaving");
+  sv.textContent = savePerL >= 0 ? "省 HK$" + saveTotal.toFixed(2) : "多花 HK$" + Math.abs(saveTotal).toFixed(2);
+  sv.className = "saving rv big " + (savePerL >= 0 ? "positive" : "negative");
+  $("cnSavingDetail").textContent = "每升" + (savePerL >= 0 ? "省" : "多花") + " HK$" + Math.abs(savePerL).toFixed(2)
+    + " · 對比 HK$" + hkPerL.toFixed(2) + "（香港基準） vs HK$" + cnWithToll.toFixed(2)
+    + "（內地" + (trip === "direct" ? "含橋費" : "順路") + "）";
+
+  // ---- 三方案對比表 ----
+  const totals = [
+    { name: "香港加德士（券後）", perL: hkPerL, total: hkPerL * tank },
+    { name: "專程北上（含橋費）", perL: cnWithToll, total: cnNetHkd * tank + toll },
+    { name: "順路北上（零橋費）", perL: cnNetHkd, total: cnNetHkd * tank }
+  ];
+  const tbody = document.querySelector("#summaryTable tbody");
+  tbody.innerHTML = "";
+  totals.forEach(t => {
+    const diff = hkPerL - t.perL;
+    const tr = document.createElement("tr");
+    const tdD = document.createElement("td");
+    tdD.textContent = diff > 0.005 ? "省 $" + (diff * tank).toFixed(2) : (diff < -0.005 ? "多花 $" + Math.abs(diff * tank).toFixed(2) : "—");
+    tdD.className = "saving " + (diff >= 0 ? "positive" : "negative");
+    tr.innerHTML = "<td>" + t.name + "</td><td>HK$" + t.perL.toFixed(2) + " /L</td><td>HK$" + t.total.toFixed(2) + "</td>";
+    tr.appendChild(tdD);
+    tbody.appendChild(tr);
+  });
+
+  // ---- 回本門檻 ----
+  const unitSaving = hkPerL - cnNetHkd;
+  const note = $("breakevenNote");
+  if (unitSaving <= 0) {
+    note.textContent = "⚠️ 內地折後價折合港幣後已高於香港基準，專程北上不划算（順路加油亦無優勢）。";
+  } else {
+    const be = toll / unitSaving;
+    note.innerHTML = "💡 專程北上回本門檻：需加滿 <b>" + be.toFixed(1) + " L</b> 才可抵消 HK$" + toll.toFixed(0)
+      + " 橋費。" + (tank >= be ? "目前設定 " + tank.toFixed(1) + "L 已過門檻，專程前往划算。" : "目前設定 " + tank.toFixed(1) + "L 未達門檻，專程前往會倒蝕橋費。");
+  }
+}
+// ===== 下拉選單 =====
+function populateCardSelect() {
+  const sel = $("cardSel");
+  sel.innerHTML = "";
+  cards.forEach(c => {
+    const o = document.createElement("option");
+    o.value = c.id; o.textContent = c.description;
+    sel.appendChild(o);
+  });
+  sel.value = state.card;
+}
+
+function updateCouponList() {
+  const card = activeCard();
+  const valid = coupons.filter(c =>
+    (!c.validCardType || c.validCardType.includes(card.type)) &&
+    (!c.validFor || c.validFor.includes(state.petrol)));
+  const sel = $("couponSel");
+  sel.innerHTML = "";
+  valid.forEach(c => {
+    const o = document.createElement("option");
+    o.value = c.id; o.textContent = c.description;
+    sel.appendChild(o);
+  });
+  if (valid.length) state.coupon = valid[0].id;
+  sel.value = state.coupon;
+}
+
+function bindToggle(elId, key) {
+  const el = $(elId);
+  el.querySelectorAll("button").forEach(b => {
+    b.addEventListener("click", () => {
+      el.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+      state[key] = b.dataset.p || b.dataset.t;
+      if (key === "petrol") {
+        if (!manualPrice) $("hkList").value = prices[state.petrol];
+        updateCouponList();
+      }
+      compute();
+    });
+  });
+}
+
+// ===== API 抓取 =====
+async function fetchPrices() {
+  const st = $("hkStatus");
+  st.textContent = "載入中…"; st.className = "status loading";
+  try {
+    const [cardsRes, couponsRes, pricesRes] = await Promise.all([
+      fetch(PRICE_API + "caltex-discountcards.json"),
+      fetch(PRICE_API + "caltex-coupons.json"),
+      fetch(PRICE_API + "petrolprice.json")
+    ]);
+    const cd = await cardsRes.json(), cp = await couponsRes.json(), pp = await pricesRes.json();
+    if (cd.discountCards && cd.discountCards.length) { cards = cd.discountCards; populateCardSelect(); }
+    if (cp.coupons && cp.coupons.length) coupons = cp.coupons;
+    const std = pp.find(i => i.type === "Standard Petrol");
+    const prem = pp.find(i => i.type === "Premium Petrol");
+    if (std && std.price && std.price.Caltex) prices.standard = parseFloat(std.price.Caltex);
+    if (prem && prem.price && prem.price.Caltex) prices.premium = parseFloat(prem.price.Caltex);
+    manualPrice = false;
+    $("hkList").value = prices[state.petrol];
+    updateCouponList();
+    st.textContent = "✅ 已更新牌價：標準 $" + prices.standard.toFixed(2) + " / 白金 $" + prices.premium.toFixed(2);
+    st.className = "status ok";
+  } catch (e) {
+    st.textContent = "❌ 抓取失敗，沿用內置備用數據（可點按鈕重試）";
+    st.className = "status err";
+  }
+  compute();
+}
+
+async function fetchFx() {
+  const st = $("fxStatus");
+  st.textContent = "載入中…"; st.className = "status loading";
+  let rate = null;
+  for (const url of [FX_API, FX_API2]) {
+    try {
+      const j = await (await fetch(url)).json();
+      if (j.rates && j.rates.HKD) { rate = j.rates.HKD; break; }
+    } catch (e) { /* try next */ }
+  }
+  if (rate) {
+    $("fx").value = rate.toFixed(4);
+    st.textContent = "✅ 已更新匯率 1 CNY = " + rate.toFixed(4) + " HKD";
+    st.className = "status ok";
+  } else {
+    st.textContent = "❌ 抓取失敗，請手動輸入";
+    st.className = "status err";
+  }
+  compute();
+}
+
+async function fetchCnPrice() {
+  const st = $("cnStatus");
+  const token = $("cnToken").value.trim();
+  if (!token) {
+    st.textContent = "⚠️ 請先展開「優惠規則 + API 設定」填入起零數據 token";
+    st.className = "status err";
+    return;
+  }
+  st.textContent = "載入中…"; st.className = "status loading";
+  try {
+    const j = await (await fetch(CN_API + "?token=" + encodeURIComponent(token) + "&keyword=" + encodeURIComponent("广东"))).json();
+    if (j.data && j.data.p98 && j.data.p98.price) {
+      $("cnPrice").value = j.data.p98.price;
+      st.textContent = "✅ 已更新（" + (j.data.date || "廣東 98#") + "）";
+      st.className = "status ok";
+    } else {
+      st.textContent = "❌ 返回異常（code=" + (j.code || "?") + "），請手動輸入";
+      st.className = "status err";
+    }
+  } catch (e) {
+    st.textContent = "❌ 抓取失敗（CORS 或網絡），請手動輸入";
+    st.className = "status err";
+  }
+  compute();
+}
+
+// ===== 初始化 =====
+function init() {
+  $("fuelDate").value = new Date().toISOString().slice(0, 10);
+  populateCardSelect();
+  updateCouponList();
+  applyAutoDiscount();
+
+  bindToggle("petrolToggle", "petrol");
+  bindToggle("tripToggle", "trip");
+
+  ["hkList", "customDisc", "cnPrice", "cnDisc", "fx", "tank", "bridge", "hkManual", "disc8", "discWed"].forEach(id => {
+    $(id).addEventListener("input", () => { if (id === "hkList") manualPrice = true; compute(); });
+  });
+
+  $("fuelDate").addEventListener("change", () => { applyAutoDiscount(); compute(); });
+  $("disc8").addEventListener("change", () => { applyAutoDiscount(); compute(); });
+  $("discWed").addEventListener("change", () => { applyAutoDiscount(); compute(); });
+
+  $("cardSel").addEventListener("change", () => {
+    state.card = $("cardSel").value;
+    $("customDiscField").style.display = state.card === "starCard-others" ? "" : "none";
+    updateCouponList();
+    compute();
+  });
+  $("couponSel").addEventListener("change", () => { state.coupon = $("couponSel").value; compute(); });
+
+  $("hkBase").addEventListener("change", () => {
+    state.hkBase = $("hkBase").value;
+    $("hkManualField").style.display = state.hkBase === "manual" ? "" : "none";
+    compute();
+  });
+
+  $("btnPrice").addEventListener("click", fetchPrices);
+  $("btnFx").addEventListener("click", fetchFx);
+  $("btnCn").addEventListener("click", fetchCnPrice);
+
+  compute();
+  fetchPrices();
+  fetchFx();
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
 </body>
 </html>
