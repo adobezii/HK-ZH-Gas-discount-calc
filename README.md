@@ -1,15 +1,15 @@
 # 粵港油價即時對比計算器
 
-**HK × ZH Gas Discount Calc** — 香港加德士拆單券後價 × 內地延長殼牌 98# 跨境比價
+**HK × ZH Gas Discount Calc** — 香港 Shell × 香港加德士 × 珠海 Shell 三欄實時比價
 
-本專案以 [hkg-deadline/caltex-discount-calc](https://github.com/hkg-deadline/caltex-discount-calc) 的加德士折扣算法為核心，擴充為「粵港兩地油價即時對比」互動頁面：自動計算加德士拆單券後實付、內地 98# 折後價、即時匯率、橋費攤分與回本門檻。
-
-提供兩種使用方式：
+首頁（`index.html`）為 v2.0 三欄比價器：香港 Shell（GO+ 日別神券）、香港加德士（私人能源卡＋油券拆單，算法對齊 [hkg-deadline/caltex-discount-calc](https://github.com/hkg-deadline/caltex-discount-calc)）、珠海 Shell（廣東 98#／95#）並列比較，內建自動抓價、即時匯率與手機觸控優化。
 
 | 版本 | 檔案 | 說明 |
 |---|---|---|
-| Web 版（推薦） | `index.html` | 單檔靜態頁，直接開瀏覽器或上載 GitHub Pages |
+| Web 版（首頁，推薦） | `index.html` | v2.0 三欄比價器；單檔靜態頁，直接開瀏覽器或上載 GitHub Pages |
+| Web 版（經典） | `classic.html` | 舊版「加德士券後價 × 延長殼牌 98#」跨境比價頁，保留備用 |
 | Python 版 | `fuel_calc.py` | Streamlit 互動計算器，邏輯封裝於 `caltex_core.py` |
+| 相容連結 | `v2.html` | 已轉址至首頁 |
 
 ## 功能
 
@@ -17,7 +17,8 @@
 - **跨境比價**：內地延長殼牌 V-Power 98# 原價 × 日期優惠 × 匯率，攤分來回橋費，計算每升與一箱節省金額、專程北上回本門檻。
 - **日期優惠自動套用**：逢 8 號（-¥2.18）與逢週三/六（-¥1.28），兩者不疊加、自動取較大折扣；金額可依當月海報修改。
 - **香港油價模式**：香港面板可切換「加德士券後價（拆單計算）」或「手動輸入每升實付」（例如消委會折後價），並以此作為比價基準。
-- **v2.0 三欄比價頁**（`v2.html`）：香港 Shell（GO+ 日別神券與積分）／香港 Caltex（私人能源卡＋油券拆單，對齊 caltex-discount-calc）／珠海 Shell 並列比價，支援接口盒子／ShowAPI／起零數據自動抓價與即時匯率，並已套用手機觸控與縮放優化。
+- **三欄比價（首頁 `index.html`）**：香港 Shell（GO+ 日別神券與積分）／香港加德士（私人能源卡＋油券拆單）／珠海 Shell（98#／95#）並列比價，支援接口盒子／ShowAPI／起零數據／RollToolsApi 自動抓價與即時匯率，並已套用手機觸控與縮放優化。
+- **珠海 Shell 日期優惠**：逢週三／六 −¥0.98、逢 8／18／28 號 −¥1.88，不疊加取較大，可選加油日期自動套用。
 - **即時資料自動抓取**：香港牌價／折扣卡／油券、CNY→HKD 匯率；抓取失敗時自動回退內置備用值，離線亦可用。
 
 ## 快速開始
@@ -46,8 +47,9 @@ python3 test_caltex_core.py
 
 ```
 HK-ZH-Gas-discount-calc/
-├── index.html           # 單檔 Web 版（加德士計算機 + 跨境比價）
-├── v2.html              # v2.0 三欄比價（Shell GO+ 神券／加德士卡券拆單／珠海 Shell，內建自動抓價）
+├── index.html           # 首頁：v2.0 三欄比價（Shell GO+ 神券／加德士卡券拆單／珠海 Shell，內建自動抓價）
+├── classic.html         # 經典版：加德士券後價 × 延長殼牌 98# 跨境比價（保留備用）
+├── v2.html              # 相容轉址頁（→ 首頁）
 ├── caltex_core.py       # 核心算法（Python，無第三方依賴）
 ├── fuel_calc.py         # Streamlit 互動介面
 ├── test_caltex_core.py  # 單元測試

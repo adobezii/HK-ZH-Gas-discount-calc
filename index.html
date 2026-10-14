@@ -1,649 +1,893 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0f1117">
-<title>跨境加油比價 · 加德士券後價 vs 內地延長殼牌 98</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,"PingFang HK","Microsoft YaHei",sans-serif;background:#0f1117;color:#e8eaed;min-height:100vh;padding:24px 16px}
-.wrap{max-width:1000px;margin:0 auto}
-h1{font-size:22px;font-weight:600}
-.sub{font-size:13px;color:#9aa0a6;margin:4px 0 20px;line-height:1.6}
-.card{background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;padding:18px;margin-bottom:16px}
-.card h2{font-size:15px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:640px){.grid{grid-template-columns:1fr}}
-.field{display:flex;flex-direction:column;gap:4px;min-width:0}
-.field label{font-size:12px;color:#9aa0a6}
-.field input,.field select{background:#0f1117;border:1px solid #2a2d3a;border-radius:8px;padding:9px 12px;color:#e8eaed;font-size:14px;outline:none;width:100%}
-.field input:focus,.field select:focus{border-color:#8ab4f8}
-.toggle{display:flex;background:#0f1117;border:1px solid #2a2d3a;border-radius:10px;padding:4px;gap:4px}
-.toggle button{flex:1;padding:8px 10px;border-radius:8px;border:none;background:transparent;color:#9aa0a6;font-size:13px;cursor:pointer;transition:all .15s}
-.toggle button.on{background:#8ab4f8;color:#0f1117;font-weight:600}
-.toggle.red button.on{background:#f28b82}
-.row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
-.btn{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-size:13px;background:#2a2d3a;color:#e8eaed}
-.btn:hover{opacity:.85}
-.btn:disabled{opacity:.5;cursor:default}
-.status{font-size:11px;margin-top:6px;min-height:14px;color:#9aa0a6}
-.ok{color:#81c995}.err{color:#f28b82}.loading{color:#fdd663}
-.results{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
-@media(max-width:640px){.results{grid-template-columns:1fr 1fr}}
-.rbox{background:#0f1117;border-radius:10px;padding:14px;border-left:3px solid #8ab4f8}
-.rbox.green{border-left-color:#81c995}.rbox.yellow{border-left-color:#fdd663}.rbox.hk{border-left-color:#f28b82}
-.rl{font-size:11px;color:#9aa0a6;text-transform:uppercase;letter-spacing:.5px}
-.rv{font-size:24px;font-weight:700;margin:4px 0}
-.rv.big{font-size:30px}
-.rd{font-size:12px;color:#9aa0a6;line-height:1.5}
-.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
-.b-wed{background:#1e3a5f;color:#8ab4f8}.b-8{background:#3d2e0a;color:#fdd663}.b-none{background:#2a2d3a;color:#9aa0a6}.b-hk{background:#3d1a1a;color:#f28b82}.b-cn{background:#0b3d2e;color:#81c995}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #2a2d3a}
-th{color:#9aa0a6;font-weight:500;font-size:12px}
-.saving{font-size:14px;font-weight:700}
-.saving.positive{color:#81c995}.saving.negative{color:#f28b82}
-.note{font-size:12px;color:#9aa0a6;line-height:1.7;margin-top:10px}
-footer{font-size:11px;color:#6b7280;text-align:center;padding:16px 0;line-height:1.8}
-footer a{color:#8ab4f8;text-decoration:none}
-details{margin-top:14px;font-size:12px;color:#9aa0a6}
-details summary{cursor:pointer;color:#8ab4f8;font-size:12px;margin-bottom:10px}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f19">
+  <title>HK-ZH Gas Discount Calc | 港珠油價及油卡終極比價器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #0b0f19; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
+    .m-stripe { background: linear-gradient(90deg, #0066B1 0%, #0066B1 33.3%, #003D78 33.3%, #003D78 66.6%, #E22718 66.6%, #E22718 100%); height: 5px; }
+    .card-bg { background: #151e2e; border: 1px solid #26334d; }
+    .winner-card { border: 2px solid #10b981; box-shadow: 0 0 25px rgba(16, 185, 129, 0.18); }
+    input[type="number"], select { background: #0b111e; border: 1px solid #334155; color: #fff; }
+    input[type="number"]:focus, select:focus { outline: none; border-color: #38bdf8; }
+    .tab-active { background-color: #0284c7; color: #fff; border-color: #38bdf8; }
 
-/* ===== 互動尺寸 / 手機友善設計 ===== */
-html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
-body{
-  padding-top:16px;
-  padding-bottom:calc(24px + env(safe-area-inset-bottom));
-  padding-left:max(14px, env(safe-area-inset-left));
-  padding-right:max(14px, env(safe-area-inset-right));
-  -webkit-tap-highlight-color:transparent;
-}
-input,select,button,summary{touch-action:manipulation}
-/* 輸入框 16px 可避免 iOS 聚焦時自動放大；觸控目標至少 44px */
-.field input,.field select{font-size:16px;min-height:44px}
-.btn{min-height:44px;padding:10px 16px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
-.toggle{padding:5px}
-.toggle button{min-height:44px;font-size:14px;padding:10px 12px}
-.field label{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px}
-.status{font-size:12px;line-height:1.6}
-details summary{display:inline-flex;align-items:center;min-height:44px;padding:2px 0}
-.rbox{min-width:0}
-.rv,.rd{overflow-wrap:anywhere}
-@media(hover:none){
-  .btn:active{background:#3a3f52}
-  .toggle button:active{opacity:.85}
-  .btn:hover{opacity:1}
-}
-@media(max-width:640px){
-  h1{font-size:18px;line-height:1.4}
-  .sub{font-size:12.5px;margin-bottom:14px}
-  .card{padding:14px;border-radius:14px;margin-bottom:12px}
-  .card h2{font-size:14.5px}
-  .grid{gap:10px}
-  .results{grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-  .rbox{padding:12px}
-  .rv{font-size:20px}
-  .rv.big{font-size:26px}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:stretch}
-  .field>.btn{width:100%}
-  table{font-size:12.5px}
-  th,td{padding:7px 8px}
-  .saving{font-size:13px}
-  footer{font-size:10.5px}
-}
-@media(max-width:340px){
-  .results{grid-template-columns:1fr}
-  h1{font-size:16.5px}
-}
-</style>
+    /* ===== 手機觸控與縮放修正 ===== */
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    body {
+      padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      -webkit-tap-highlight-color: transparent;
+    }
+    input, select, button, summary { touch-action: manipulation; }
+    input[type="number"], input[type="text"], input[type="password"], select {
+      min-height: 44px; font-size: 16px;
+    }
+    button { min-height: 44px; }
+    input[type="checkbox"] { width: 22px; height: 22px; }
+    details > summary { min-height: 44px; display: flex; align-items: center; }
+    @media (hover: none) {
+      button:active { opacity: .85; }
+    }
+    @media (max-width: 640px) {
+      #hks_net_per_l, #cal_net_per_l, #zhs_net_per_l { font-size: 1.4rem; line-height: 2rem; }
+    }
+  </style>
 </head>
-<body>
-<div class="wrap">
-<header>
-  <h1>⛽ 跨境加油比價 · 加德士券後價 vs 內地延長殼牌 98</h1>
-  <div class="sub">自動計算加德士拆單券後實付（私人能源卡 + 滿 $350 減 $50）· 內地 V-Power 98 折後價 · 即時匯率 · 橋費攤分。規則：週三/六 與 8 號優惠不疊加、取最平；V-Power 98 與加德士 98 視為同級。</div>
-</header>
+<body class="min-h-screen pb-14">
 
-<section class="card hk">
-  <h2><span class="badge b-hk">香港</span> 香港油價（加德士券後價 / 手動輸入）</h2>
-  <div class="field" style="margin-bottom:12px">
-    <label>香港油價模式</label>
-    <div class="toggle red" id="hkModeToggle">
-      <button type="button" data-m="caltex" class="on">加德士券後價（拆單計算）</button>
-      <button type="button" data-m="manual">手動輸入每升實付</button>
-    </div>
-  </div>
-  <div class="grid" id="caltexFields">
-    <div class="field" style="grid-column:1/-1">
-      <label>油品</label>
-      <div class="toggle red" id="petrolToggle">
-        <button type="button" data-p="standard" class="on">黃金（平油）</button>
-        <button type="button" data-p="premium">白金（貴油 98）</button>
+  <div class="m-stripe w-full"></div>
+
+  <div class="max-w-6xl mx-auto px-4 pt-5">
+    <!-- Top Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 text-[11px] font-bold uppercase bg-blue-900/60 text-blue-300 rounded border border-blue-700/50">HK-ZH-Gas-discount-calc v2.0</span>
+          <span id="currentDayBadge" class="px-2 py-0.5 text-[11px] font-semibold bg-amber-500/20 text-amber-300 rounded border border-amber-500/40">載入日期中...</span>
+        </div>
+        <h1 class="text-2xl font-extrabold tracking-tight mt-1 text-white">
+          珠海 Shell vs 香港 Shell vs 加德士 <span class="text-sky-400">實時比價計算機</span>
+        </h1>
+      </div>
+
+      <!-- Global Settings Bar -->
+      <div class="flex flex-wrap items-center gap-3 card-bg p-3 rounded-xl">
+        <div>
+          <label class="block text-[11px] text-slate-400 mb-1">入油升數 (L)</label>
+          <div class="flex items-center gap-1.5">
+            <input type="number" id="fuelLiters" value="60" min="1" max="100" step="0.5" class="w-20 px-2 py-1 rounded font-bold text-base text-sky-400" oninput="calculateAll()">
+            <button onclick="setLiters(12.93)" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1.5 rounded text-slate-300">12.9L</button>
+            <button onclick="setLiters(40)" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1.5 rounded text-slate-300">40L</button>
+            <button onclick="setLiters(68)" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1.5 rounded text-slate-300">滿缸68L</button>
+          </div>
+        </div>
+        <div class="border-l border-slate-700 pl-3">
+          <label class="block text-[11px] text-slate-400 mb-1">匯率 (¥1 = HK$)</label>
+          <input type="number" id="exchangeRate" value="1.08" step="0.01" class="w-20 px-2 py-1 rounded font-bold text-base text-amber-400" oninput="saveAndCalc()">
+        </div>
       </div>
     </div>
-    <div class="field"><label>折扣卡</label><select id="cardSel"></select></div>
-    <div class="field" id="customDiscField" style="display:none"><label>自訂每升折扣 (HK$)</label><input id="customDisc" type="number" min="0" step="0.1" value="0"></div>
-    <div class="field"><label>油券</label><select id="couponSel"></select></div>
-    <div class="field"><label>加德士牌價 (HK$/L)</label><input id="hkList" type="number" min="0" step="0.01" value="33.17"></div>
-    <div class="field">
-      <label>自動抓取最新牌價</label>
-      <button class="btn" id="btnPrice" type="button">↻ 抓取（hkg 爬蟲）</button>
-    </div>
-  </div>
-  <div class="field" id="hkManualFields" style="display:none;margin-top:12px">
-    <label>香港每升實付 (HK$)</label>
-    <input id="hkManualPrice" type="number" min="0" step="0.01" value="23.99">
-  </div>
-  <div class="status" id="hkStatus"></div>
-  <div class="results">
-    <div class="rbox caltexOnly"><div class="rl">折扣後單價</div><div class="rv">$<span id="hkDiscPrice">&ndash;</span></div><div class="rd">牌價 $<span id="hkListShow">&ndash;</span></div></div>
-    <div class="rbox caltexOnly"><div class="rl">每張券需入升數</div><div class="rv"><span id="hkLiters">&ndash;</span> L</div><div class="rd">免費 <span id="hkFreeLiters">&ndash;</span> L</div></div>
-    <div class="rbox caltexOnly"><div class="rl">每張券實付</div><div class="rv">$<span id="hkPaid">&ndash;</span></div><div class="rd">滿 $<span id="hkSpend">&ndash;</span> 減 $<span id="hkCouponVal">&ndash;</span></div></div>
-    <div class="rbox hk" style="grid-column:1/-1"><div class="rl" id="hkEffLabel">券後每升實付（比較基準）</div><div class="rv big">HK$<span id="hkEff">&ndash;</span> /L</div><div class="rd" id="hkEffDesc">&ndash;</div></div>
-  </div>
-</section>
-<section class="card cn">
-  <h2><span class="badge b-cn">內地</span> 跨境北上比價（延長殼牌 V-Power 98）</h2>
-  <div class="grid">
-    <div class="field">
-      <label>行程模式</label>
-      <div class="toggle" id="tripToggle">
-        <button type="button" data-t="direct" class="on">專程北上（含橋費）</button>
-        <button type="button" data-t="pass">順路北上（零橋費）</button>
+
+    <!-- Auto Fetch (API) -->
+    <details class="mt-4 card-bg rounded-xl overflow-hidden">
+      <summary class="px-4 py-2.5 text-xs font-bold text-sky-300 cursor-pointer select-none">🔌 自動抓價設定（接口盒子 / ShowAPI / 起零）</summary>
+      <div class="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-slate-300 shrink-0">內地油價來源</span>
+          <select id="cn_source" class="flex-1 min-w-0 px-2 py-1 rounded" onchange="applyCnSource()">
+            <option value="apihz">接口盒子 全國油價（id + key）</option>
+            <option value="showapi">ShowAPI 今日油價（APPCODE）</option>
+            <option value="istero">起零數據全國油價（token）</option>
+            <option value="mxnzp">RollToolsApi 全國油價（app_id + app_secret）</option>
+          </select>
+        </div>
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-slate-300 shrink-0">省份（珠海＝广东）</span>
+          <input type="text" id="cn_prov" value="广东" class="flex-1 min-w-0 px-2 py-1 rounded text-right">
+        </div>
+        <div class="flex items-center justify-between gap-2" id="cn_id_wrap" style="display:none">
+          <span class="text-slate-300 shrink-0" id="cn_id_label">開發者 ID</span>
+          <input type="text" id="cn_id" placeholder="ID" autocomplete="off" class="flex-1 min-w-0 px-2 py-1 rounded text-right">
+        </div>
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-slate-300 shrink-0" id="cn_key_label">APPCODE</span>
+          <input type="password" id="cn_key" placeholder="APPCODE" autocomplete="off" class="flex-1 min-w-0 px-2 py-1 rounded text-right">
+        </div>
+        <div class="md:col-span-2 flex flex-wrap gap-2">
+          <button type="button" onclick="fetchCnPrice()" class="text-xs px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-semibold">↻ 抓取內地油價</button>
+          <button type="button" onclick="fetchHkPrices()" class="text-xs px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-100 font-semibold">↻ 抓取香港牌價／卡券</button>
+          <button type="button" onclick="fetchFx()" class="text-xs px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-100 font-semibold">↻ 刷新匯率</button>
+        </div>
+        <div class="md:col-span-2 space-y-1">
+          <div id="cn_status" class="text-[11px] text-slate-400">-</div>
+          <div id="hk_status" class="text-[11px] text-slate-400">-</div>
+          <div id="fx_status" class="text-[11px] text-slate-400">-</div>
+        </div>
+        <div class="md:col-span-2 text-[11px] text-slate-500 leading-relaxed">
+          憑證只留在瀏覽器記憶體，不會寫入程式或上傳。香港牌價／折扣卡／油券：hkg-deadline/hk-petrol-price-crawler（data.gov.hk）；匯率：exchangerate.fun／open.er-api.com。
+        </div>
+      </div>
+    </details>
+
+    <!-- Top Winner Banner -->
+    <div class="my-5 p-4 rounded-xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-900 border border-emerald-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div>
+        <div class="text-xs font-bold uppercase tracking-wider text-emerald-400">當前設定最抵入油方案</div>
+        <div id="bestChoiceTitle" class="text-lg md:text-xl font-extrabold text-white mt-0.5">-</div>
+        <div id="bestChoiceSub" class="text-xs md:text-sm text-slate-300 mt-0.5">-</div>
+      </div>
+      <div class="flex gap-5 self-end md:self-center text-right">
+        <div>
+          <div class="text-[11px] text-slate-400">香港境內對決 (Shell vs Caltex)</div>
+          <div id="hkWinnerText" class="text-sm md:text-base font-bold text-sky-400 mt-0.5">-</div>
+        </div>
+        <div class="border-l border-slate-700 pl-4">
+          <div class="text-[11px] text-slate-400">北上珠海可慳 (對比香港最抵)</div>
+          <div id="zhuhaiSaveText" class="text-sm md:text-base font-bold text-emerald-400 mt-0.5">-</div>
+        </div>
       </div>
     </div>
-    <div class="field"><label>加油日期（自動套用優惠）</label><input id="fuelDate" type="date"></div>
-    <div class="field"><label>內地 98# 原價 (¥/L)</label><input id="cnPrice" type="number" min="0" step="0.01" value="11.74"></div>
-    <div class="field"><label>每升立減 (¥/L) — <span id="discLabel" class="badge b-none">無優惠</span></label><input id="cnDisc" type="number" min="0" step="0.01" value="0"></div>
-    <div class="field"><label>匯率 CNY → HKD</label><input id="fx" type="number" min="0.1" step="0.0001" value="1.16599"></div>
-    <div class="field"><label>油箱容量 (L)</label><input id="tank" type="number" min="1" step="0.5" value="72.67"></div>
-    <div class="field"><label>來回橋費 (HK$)</label><input id="bridge" type="number" min="0" step="10" value="340"></div>
-  </div>
-  <details>
-    <summary>優惠規則 + API 設定</summary>
-    <div class="grid">
-      <div class="field"><label>8 號立減 (¥/L，依當月海報調整)</label><input id="disc8" type="number" min="0" step="0.01" value="2.18"></div>
-      <div class="field"><label>週三/六立減 (¥/L)</label><input id="discWed" type="number" min="0" step="0.01" value="1.28"></div>
-      <div class="field"><label>內地油價來源</label><select id="cnSource">
-        <option value="apihz">接口盒子 全國油價（id + key）</option>
-        <option value="showapi">ShowAPI 今日油價（APPCODE）</option>
-        <option value="istero">起零數據全國油價（token）</option>
-      </select></div>
-      <div class="field" id="cnIdField" style="display:none"><label>開發者 ID</label><input id="cnId" type="text" placeholder="ID" autocomplete="off"></div>
-      <div class="field"><label id="cnKeyLabel">APPCODE</label><input id="cnKey" type="password" placeholder="APPCODE"></div>
-      <div class="field"><label>操作</label><div class="row">
-        <button class="btn" id="btnCn" type="button">↻ 抓取內地油價</button>
-        <button class="btn" id="btnFx" type="button">↻ 刷新匯率</button>
-      </div></div>
+
+    <!-- Main 3 Columns -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+      <!-- COLUMN 1: HK SHELL (Integrated with GO+ Targeted Offers) -->
+      <div id="card-hkshell" class="card-bg rounded-2xl p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-7 rounded bg-yellow-400"></div>
+              <div>
+                <h2 class="text-base font-bold text-white">香港 Shell 蜆殼</h2>
+                <p class="text-[11px] text-slate-400">已內建 2026年10月 特選會員專享券</p>
+              </div>
+            </div>
+            <span id="badge-hkshell" class="hidden px-2 py-0.5 text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 rounded-full">香港最抵</span>
+          </div>
+
+          <!-- Shell Fuel Type & Day Selector -->
+          <div class="mt-3 space-y-2.5">
+            <div class="grid grid-cols-2 gap-1.5 bg-slate-900 p-1 rounded-lg border border-slate-800">
+              <button id="btn-vpower" onclick="setShellFuel('vpower')" class="text-xs py-1.5 rounded font-bold tab-active">V-Power ($36.32)</button>
+              <button id="btn-fuelsave" onclick="setShellFuel('fuelsave')" class="text-xs py-1.5 rounded font-medium text-slate-400">FuelSave ($34.52)</button>
+            </div>
+
+            <div>
+              <label class="text-[11px] text-slate-400 block mb-1">點選 Shell GO+ 特選會員專享券：</label>
+              <div class="grid grid-cols-3 gap-1.5">
+                <button id="btn-day-wed" onclick="applyShellGoPlus('wed')" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
+                  <div class="font-bold text-yellow-300">星期三升級</div>
+                  <div class="text-[10px] text-slate-400">即減$14.4/高達$14.8</div>
+                </button>
+                <button id="btn-day-wknd" onclick="applyShellGoPlus('wknd')" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
+                  <div class="font-bold text-emerald-300">星期六及日</div>
+                  <div class="text-[10px] text-slate-400">基本$13.6/高達$15.4</div>
+                </button>
+                <button id="btn-day-wkdy" onclick="applyShellGoPlus('wkdy')" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
+                  <div class="font-bold text-sky-300">平日一二四五</div>
+                  <div class="text-[10px] text-slate-400">基本$12.6/高達$14.8</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Toggle Cash vs Points -->
+            <div class="flex items-center justify-between bg-slate-900/90 px-3 py-2 rounded-lg border border-slate-800">
+              <span class="text-xs text-slate-300">計入 GO+ 積分回贈價值 ("高達"字眼)</span>
+              <input type="checkbox" id="hks_inc_pts" class="w-4 h-4 accent-sky-500" onchange="updateShellBySelection()">
+            </div>
+          </div>
+
+          <!-- Fine-tune Inputs -->
+          <div class="space-y-2.5 mt-3.5 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-300">當前油品牌價 (HK$/L)</span>
+              <input type="number" id="hks_base" value="36.32" step="0.01" class="w-24 px-2 py-1 rounded text-right font-semibold" oninput="calculateAll()">
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-300">每升實際扣減額 (HK$/L)</span>
+              <input type="number" id="hks_disc" value="14.40" step="0.1" class="w-24 px-2 py-1 rounded text-right font-bold text-emerald-400" oninput="calculateAll()">
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-300">額外滿額券：滿 HK$ / 減 HK$</span>
+              <div class="flex gap-1">
+                <input type="number" id="hks_v_min" value="0" placeholder="門檻" class="w-16 px-1.5 py-1 rounded text-right" oninput="calculateAll()">
+                <input type="number" id="hks_v_val" value="0" placeholder="減額" class="w-14 px-1.5 py-1 rounded text-right text-emerald-400" oninput="calculateAll()">
+              </div>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-300">信用卡回贈 (%)</span>
+              <input type="number" id="hks_cc" value="0" step="0.5" class="w-24 px-2 py-1 rounded text-right" oninput="saveAndCalc()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Result Box -->
+        <div class="mt-5 pt-3.5 border-t border-slate-800">
+          <div class="flex justify-between items-baseline">
+            <span class="text-xs text-slate-400">折合每升實付淨價</span>
+            <div class="text-2xl font-extrabold text-white" id="hks_net_per_l">HK$ 21.92 <span class="text-xs font-normal text-slate-400">/L</span></div>
+          </div>
+          <div class="flex justify-between items-baseline mt-1.5">
+            <span class="text-xs text-slate-400">本次入油實付總額</span>
+            <div class="text-lg font-bold text-yellow-400" id="hks_total">HK$ 1,315.20</div>
+          </div>
+          <div class="flex justify-between items-center mt-1 text-[11px] text-slate-400">
+            <span>總折扣率：<strong id="hks_pct" class="text-emerald-400">39.6% OFF</strong></span>
+            <span id="hks_saved">共慳 HK$ 864.0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMN 2: HK CALTEX (對齊 hkg-deadline/caltex-discount-calc) -->
+      <div id="card-caltex" class="card-bg rounded-2xl p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-7 rounded bg-red-500"></div>
+              <div>
+                <h2 class="text-base font-bold text-white">香港 Caltex 加德士</h2>
+                <p class="text-[11px] text-slate-400">私人能源卡 + 油券拆單（對齊 caltex-discount-calc）</p>
+              </div>
+            </div>
+            <span id="badge-caltex" class="hidden px-2 py-0.5 text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 rounded-full">香港最抵</span>
+          </div>
+
+          <div class="mt-3 grid grid-cols-2 gap-1.5 bg-slate-900 p-1 rounded-lg border border-slate-800">
+            <button id="cal-btn-std" onclick="setCaltexPetrol('standard')" class="text-xs py-1.5 rounded font-bold tab-active">黃金（平油）</button>
+            <button id="cal-btn-prem" onclick="setCaltexPetrol('premium')" class="text-xs py-1.5 rounded font-medium text-slate-400">白金 98</button>
+          </div>
+
+          <div class="space-y-2.5 mt-3 text-xs">
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">折扣卡</span>
+              <select id="cal_card" class="flex-1 min-w-0 px-2 py-1 rounded text-right" onchange="onCaltexCardChange()"></select>
+            </div>
+            <div class="flex justify-between items-center gap-2" id="cal_custom_wrap" style="display:none">
+              <span class="text-slate-300 shrink-0">自訂每升折扣 (HK$/L)</span>
+              <input type="number" id="cal_custom" value="0" step="0.1" class="w-24 px-2 py-1 rounded text-right" oninput="calculateAll()">
+            </div>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">油券</span>
+              <select id="cal_coupon" class="flex-1 min-w-0 px-2 py-1 rounded text-right" onchange="calculateAll()"></select>
+            </div>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">官方牌價 (HK$/L)</span>
+              <input type="number" id="cal_base" value="34.72" step="0.01" class="w-24 px-2 py-1 rounded text-right font-semibold" oninput="calculateAll()">
+            </div>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">信用卡回贈 (%)</span>
+              <input type="number" id="cal_cc" value="0" step="0.5" class="w-24 px-2 py-1 rounded text-right" oninput="saveAndCalc()">
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1.5 text-[11px]">
+              <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">折扣後單價</span><span id="cal_after_card" class="font-semibold text-slate-200 text-right">-</span></div>
+              <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">每張券需入 / 免費</span><span id="cal_liters" class="font-semibold text-slate-200 text-right">-</span></div>
+              <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">每張券實付</span><span id="cal_per_coupon" class="font-semibold text-emerald-400 text-right">-</span></div>
+              <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">本次需拆單</span><span id="cal_split" class="font-semibold text-amber-300 text-right">-</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 pt-3.5 border-t border-slate-800">
+          <div class="flex justify-between items-baseline">
+            <span class="text-xs text-slate-400">券後每升實付淨價</span>
+            <div class="text-2xl font-extrabold text-white" id="cal_net_per_l">-</div>
+          </div>
+          <div class="flex justify-between items-baseline mt-1.5">
+            <span class="text-xs text-slate-400">本次入油實付總額</span>
+            <div class="text-lg font-bold text-red-400" id="cal_total">-</div>
+          </div>
+          <div class="flex justify-between items-center mt-1 text-[11px] text-slate-400">
+            <span>總折扣率：<strong id="cal_pct" class="text-emerald-400">-</strong></span>
+            <span id="cal_saved">-</span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- COLUMN 3: ZHUHAI SHELL -->
+      <div id="card-zhshell" class="card-bg rounded-2xl p-5 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-7 rounded bg-emerald-500"></div>
+              <div>
+                <h2 class="text-base font-bold text-white">珠海 Shell 蜆殼</h2>
+                <p class="text-[11px] text-slate-400">V-Power 98# / 95# 汽油 (RMB 計價)</p>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-full">跨境對照</span>
+          </div>
+
+          <div class="mt-3 space-y-2.5 text-xs">
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">加油日期</span>
+              <input type="date" id="zhs_date" class="flex-1 min-w-0 px-2 py-1 rounded text-right" onchange="applyZhuhaiRules()">
+            </div>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">當前優惠</span>
+              <span id="zhs_rule_badge" class="px-2 py-0.5 text-[11px] font-semibold rounded-full border bg-slate-800 text-slate-300 border-slate-600">-</span>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="text-[11px] text-slate-400 block mb-1">快速套用：</label>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button type="button" onclick="applyZhPreset(9.95, 1.88, 200, 20)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
+                <div class="font-bold text-amber-300">8／18／28</div>
+                <div class="text-[10px] text-slate-400">98# 減 ¥1.88/L</div>
+              </button>
+              <button type="button" onclick="applyZhPreset(9.95, 0.98, 200, 20)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
+                <div class="font-bold text-sky-300">週三／六</div>
+                <div class="text-[10px] text-slate-400">98# 減 ¥0.98/L</div>
+              </button>
+              <button type="button" onclick="applyZhPreset(8.65, 0.40, 0, 0)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
+                <div class="font-bold text-emerald-300">珠海 95#</div>
+                <div class="text-[10px] text-slate-400">¥8.65 減 ¥0.4/L</div>
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-2.5 mt-3.5 text-xs">
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">珠海掛牌價 (¥/L)</span>
+              <input type="number" id="zhs_base" value="9.95" step="0.05" class="w-24 px-2 py-1 rounded text-right font-semibold text-amber-300" oninput="saveAndCalc()">
+            </div>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">每升立減 (¥/L)</span>
+              <input type="number" id="zhs_disc" value="0.98" step="0.01" class="w-24 px-2 py-1 rounded text-right font-bold text-emerald-400" oninput="calculateAll()">
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-2">
+              <div class="text-[11px] text-slate-400">日期優惠規則（不疊加，取較大）</div>
+              <div class="flex justify-between items-center gap-2">
+                <span class="text-slate-300 shrink-0">逢 8／18／28 號 (¥/L)</span>
+                <input type="number" id="zhs_rule_d8" value="1.88" step="0.05" class="w-20 px-2 py-1 rounded text-right text-amber-300" oninput="applyZhuhaiRules()">
+              </div>
+              <div class="flex justify-between items-center gap-2">
+                <span class="text-slate-300 shrink-0">逢週三／六 (¥/L)</span>
+                <input type="number" id="zhs_rule_dw" value="0.98" step="0.05" class="w-20 px-2 py-1 rounded text-right text-sky-300" oninput="applyZhuhaiRules()">
+              </div>
+            </div>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">滿額券：滿 ¥ / 減 ¥</span>
+              <div class="flex gap-1">
+                <input type="number" id="zhs_v_min" value="200" class="w-16 px-1.5 py-1 rounded text-right" oninput="calculateAll()">
+                <input type="number" id="zhs_v_val" value="15" class="w-14 px-1.5 py-1 rounded text-right text-emerald-400" oninput="calculateAll()">
+              </div>
+            </div>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">過境路費攤分 (HK$)</span>
+              <input type="number" id="zhs_extra_hkd" value="0" step="50" class="w-24 px-2 py-1 rounded text-right" oninput="calculateAll()">
+            </div>
+          </div>
+
+
+        <div class="mt-5 pt-3.5 border-t border-slate-800">
+          <div class="flex justify-between items-baseline">
+            <span class="text-xs text-slate-400">折合港幣每升實付</span>
+            <div class="text-2xl font-extrabold text-emerald-400" id="zhs_net_per_l">HK$ 9.94 <span class="text-xs font-normal text-slate-400">/L</span></div>
+          </div>
+          <div class="flex justify-between items-baseline mt-1.5">
+            <span class="text-xs text-slate-400">本次入油實付總額</span>
+            <div class="text-lg font-bold text-white" id="zhs_total">HK$ 596.16 <span class="text-xs text-amber-300 font-normal">(¥552.00)</span></div>
+          </div>
+          <div class="flex justify-between items-center mt-1 text-[11px] text-slate-400">
+            <span>相當於香港牌價：<strong id="zhs_vs_hk_pct" class="text-emerald-400">2.7 折</strong></span>
+            <span id="zhs_saved_vs_hk">比香港牌價平 HK$ 1,583</span>
+          </div>
+        </div>
+      </div>
+
     </div>
-    <div class="status" id="cnStatus"></div>
-    <div class="status" id="fxStatus"></div>
-  </details>
-  <div class="results">
-    <div class="rbox green"><div class="rl">內地折後純油價</div><div class="rv">HK$<span id="cnNetHkd">&ndash;</span></div><div class="rd">¥<span id="cnNetCny">&ndash;</span>/L</div></div>
-    <div class="rbox yellow"><div class="rl">攤分橋費</div><div class="rv">HK$<span id="cnTollShare">&ndash;</span></div><div class="rd">每升（僅專程北上）</div></div>
-    <div class="rbox"><div class="rl">計入橋費單價</div><div class="rv">HK$<span id="cnWithToll">&ndash;</span></div><div class="rd">對比香港基準</div></div>
-    <div class="rbox green" style="grid-column:1/-1"><div class="rl">一箱（<span id="tankShow2">&ndash;</span>L）節省</div><div class="saving positive rv big" id="cnSaving">&ndash;</div><div class="rd" id="cnSavingDetail">&ndash;</div></div>
   </div>
-</section>
 
-<section class="card">
-  <h2>📊 三方案對比結論</h2>
-  <div style="overflow-x:auto">
-  <table id="summaryTable">
-    <thead><tr><th>方案</th><th>每升成本</th><th>總支出</th><th>相對香港券後價</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  </div>
-  <div class="note" id="breakevenNote"></div>
-</section>
+  <script>
+    let currentShellFuel = 'vpower'; // 'vpower' or 'fuelsave'
+    let currentShellDay = 'wed';     // 'wed', 'wknd', 'wkdy'
+    let caltexPetrol = 'standard';   // 'standard' (黃金) or 'premium' (白金)
 
-<footer>
-  資料來源：香港牌價／折扣卡／油券 — <a href="https://github.com/hkg-deadline/hk-petrol-price-crawler" target="_blank" rel="noopener">hk-petrol-price-crawler</a>（data.gov.hk 開放數據）· 匯率 — exchangerate.fun／open.er-api.com · 內地油價 — 起零數據（需 token）<br>
-  加德士折扣算法移植自 <a href="https://github.com/hkg-deadline/caltex-discount-calc" target="_blank" rel="noopener">hkg-deadline/caltex-discount-calc</a>（GPL-3.0）· 本工具僅供個人參考，價格以油站實際為準。
-</footer>
-</div>
-<script>
-'use strict';
-
-// ===== 內置備用數據（離線 / API 失敗時使用）=====
-const FALLBACK = {
-  cards: [
-    {id:"caltex-personal-StarCard",type:"starCard",description:"私人能源卡：黃金減$11 / 白金減$12",standardDiscount:11,premiumDiscount:12},
-    {id:"caltex-personal-StarCard2",type:"starCard",description:"私人能源卡：黃金減$11.5 / 白金減$12",standardDiscount:11.5,premiumDiscount:12},
-    {id:"hsbc-credit-card",type:"hsbc",description:"滙豐信用卡：黃金/白金減$0.9",standardDiscount:0.9,premiumDiscount:0.9},
-    {id:"starCard-others",type:"starCard",description:"其他私人能源卡（自訂折扣）",standardDiscount:0,premiumDiscount:0}
-  ],
-  coupons: [
-    {id:"starCard-350-50",description:"私人能源卡 - 入滿$350減$50",spend:350,discount:50,validCardType:"starCard",validFor:["standard","premium"]},
-    {id:"hsbc-permium-800-300",description:"滙豐信用卡 - 白金入滿$800減$300",spend:800,discount:300,validCardType:"hsbc",validFor:["premium"]},
-    {id:"hsbc-standard-800-280",description:"滙豐信用卡 - 黃金入滿$800減$280",spend:800,discount:280,validCardType:"hsbc",validFor:["standard"]}
-  ],
-  prices: { standard: 33.17, premium: 34.97 }
-};
-
-const CN_API = "https://api.istero.com/resource/v2/oilprice";
-const SHOWAPI_CN_URL = "https://ali-todayoil.showapi.com/todayoil";
-const APIHZ_CN_URL = "https://cn.apihz.cn/api/jinrong/youjia.php";
-const FX_API = "https://api.exchangerate.fun/latest?base=CNY";
-const FX_API2 = "https://open.er-api.com/v6/latest/CNY";
-const PRICE_API = "https://hkg-deadline.github.io/hk-petrol-price-crawler/json/";
-
-let cards = FALLBACK.cards.slice();
-let coupons = FALLBACK.coupons.slice();
-let prices = Object.assign({}, FALLBACK.prices);
-let state = { petrol: "standard", card: "caltex-personal-StarCard", coupon: "starCard-350-50", trip: "direct", hkMode: "caltex" };
-let manualPrice = false;
-
-const $ = id => document.getElementById(id);
-const num = id => parseFloat($(id).value) || 0;
-
-// ===== 加德士核心算法（移植自 caltex-discount-calc / js/main.js）=====
-function calcCaltex(listPrice, cardDiscount, spend, couponValue) {
-  const discountedPrice = listPrice - cardDiscount;
-  const totalLiters = spend / listPrice;              // 達門檻所需升數（按牌價計）
-  const paidLiters = (spend - couponValue) / listPrice;
-  const freeLiters = totalLiters - paidLiters;
-  const amountPaid = paidLiters * discountedPrice;
-  const actualPrice = amountPaid / totalLiters;       // 券後每升實付
-  return { discountedPrice, totalLiters, paidLiters, freeLiters, amountPaid, actualPrice, actualDiscount: listPrice - actualPrice };
-}
-
-function activeCard() {
-  if (state.card === "starCard-others") return { type: "starCard", standardDiscount: num("customDisc"), premiumDiscount: num("customDisc") };
-  return cards.find(c => c.id === state.card) || cards[0];
-}
-
-function activeCoupon() {
-  const c = coupons.find(c => c.id === state.coupon);
-  return c || { spend: 350, discount: 0 };
-}
-
-// 日期優惠：週三/六 與 8 號不疊加，取較大折扣
-function dateDiscount() {
-  const d = new Date($("fuelDate").value || new Date().toISOString().slice(0, 10));
-  const day = d.getDate(), wd = d.getDay();
-  const d8 = num("disc8"), dw = num("discWed");
-  const hit8 = day === 8, hitWed = (wd === 3 || wd === 6);
-  if (hit8 && hitWed) {
-    const best = Math.max(d8, dw);
-    return { discount: best, label: "8號+週三/六同時（取最平 -¥" + best.toFixed(2) + "）", cls: d8 >= dw ? "b-8" : "b-wed" };
-  }
-  if (hit8) return { discount: d8, label: "8 號特惠 -¥" + d8.toFixed(2), cls: "b-8" };
-  if (hitWed) return { discount: dw, label: "週三/六特惠 -¥" + dw.toFixed(2), cls: "b-wed" };
-  return { discount: 0, label: "無優惠", cls: "b-none" };
-}
-
-function applyAutoDiscount() {
-  const d = dateDiscount();
-  $("cnDisc").value = d.discount.toFixed(2);
-  const lbl = $("discLabel");
-  lbl.textContent = d.label;
-  lbl.className = "badge " + d.cls;
-}
-// ===== 主計算與渲染 =====
-function compute() {
-  const tank = Math.max(num("tank"), 1);
-  const manualHk = state.hkMode === "manual";
-
-  // ---- 香港油價（加德士券後價 或 手動輸入）----
-  const listPrice = num("hkList");
-  const card = activeCard();
-  const cardDisc = state.petrol === "standard" ? card.standardDiscount : card.premiumDiscount;
-  const coupon = activeCoupon();
-  const r = (listPrice > 0 && cardDisc >= 0 && cardDisc < listPrice && coupon.spend > 0)
-    ? calcCaltex(listPrice, cardDisc, coupon.spend, coupon.discount)
-    : null;
-
-  let hkPerL;
-  if (manualHk) {
-    hkPerL = Math.max(num("hkManualPrice"), 0);
-    $("hkEff").textContent = hkPerL.toFixed(2);
-    $("hkEffLabel").textContent = "手動輸入每升實付（比較基準）";
-    $("hkEffDesc").textContent = "香港油價：手動輸入" + (hkPerL > 0 ? "" : "（請輸入有效單價）");
-  } else if (r) {
-    hkPerL = r.actualPrice;
-    $("hkDiscPrice").textContent = r.discountedPrice.toFixed(2);
-    $("hkListShow").textContent = listPrice.toFixed(2);
-    $("hkLiters").textContent = r.totalLiters.toFixed(3);
-    $("hkFreeLiters").textContent = r.freeLiters.toFixed(3);
-    $("hkPaid").textContent = r.amountPaid.toFixed(2);
-    $("hkSpend").textContent = coupon.spend;
-    $("hkCouponVal").textContent = coupon.discount;
-    $("hkEff").textContent = r.actualPrice.toFixed(2);
-    $("hkEffLabel").textContent = "券後每升實付（比較基準）";
-    $("hkEffDesc").textContent = "每升節省 $" + r.actualDiscount.toFixed(2)
-      + " · 加滿 " + tank.toFixed(1) + "L 需拆單 " + Math.ceil(tank / r.totalLiters) + " 次";
-  } else {
-    hkPerL = 0;
-    ["hkDiscPrice","hkListShow","hkLiters","hkFreeLiters","hkPaid"].forEach(id => $(id).textContent = "—");
-    $("hkSpend").textContent = "—"; $("hkCouponVal").textContent = "—";
-    $("hkEff").textContent = "—";
-    $("hkEffDesc").textContent = "請檢查牌價與折扣設定";
-  }
-
-  // ---- 跨境北上 ----
-  const trip = state.trip;
-  const toll = trip === "direct" ? Math.max(num("bridge"), 0) : 0;
-  const cnNetCny = Math.max(num("cnPrice") - num("cnDisc"), 0);
-  const fx = Math.max(num("fx"), 0.1);
-  const cnNetHkd = cnNetCny * fx;
-  const tollShare = toll / tank;
-  const cnWithToll = cnNetHkd + tollShare;
-
-  $("cnNetCny").textContent = cnNetCny.toFixed(2);
-  $("cnNetHkd").textContent = cnNetHkd.toFixed(2);
-  $("cnTollShare").textContent = tollShare.toFixed(2);
-  $("cnWithToll").textContent = cnWithToll.toFixed(2);
-  $("tankShow2").textContent = tank.toFixed(1);
-
-  const savePerL = hkPerL - cnWithToll;
-  const saveTotal = savePerL * tank;
-  const sv = $("cnSaving");
-  sv.textContent = savePerL >= 0 ? "省 HK$" + saveTotal.toFixed(2) : "多花 HK$" + Math.abs(saveTotal).toFixed(2);
-  sv.className = "saving rv big " + (savePerL >= 0 ? "positive" : "negative");
-  $("cnSavingDetail").textContent = "每升" + (savePerL >= 0 ? "省" : "多花") + " HK$" + Math.abs(savePerL).toFixed(2)
-    + " · 對比 HK$" + hkPerL.toFixed(2) + "（香港基準） vs HK$" + cnWithToll.toFixed(2)
-    + "（內地" + (trip === "direct" ? "含橋費" : "順路") + "）";
-
-  // ---- 三方案對比表 ----
-  const hkRowName = manualHk ? "香港（手動輸入）" : "香港加德士（券後）";
-  const totals = [
-    { name: hkRowName, perL: hkPerL, total: hkPerL * tank },
-    { name: "專程北上（含橋費）", perL: cnWithToll, total: cnNetHkd * tank + toll },
-    { name: "順路北上（零橋費）", perL: cnNetHkd, total: cnNetHkd * tank }
-  ];
-  const tbody = document.querySelector("#summaryTable tbody");
-  tbody.innerHTML = "";
-  totals.forEach(t => {
-    const diff = hkPerL - t.perL;
-    const tr = document.createElement("tr");
-    const tdD = document.createElement("td");
-    tdD.textContent = diff > 0.005 ? "省 $" + (diff * tank).toFixed(2) : (diff < -0.005 ? "多花 $" + Math.abs(diff * tank).toFixed(2) : "—");
-    tdD.className = "saving " + (diff >= 0 ? "positive" : "negative");
-    tr.innerHTML = "<td>" + t.name + "</td><td>HK$" + t.perL.toFixed(2) + " /L</td><td>HK$" + t.total.toFixed(2) + "</td>";
-    tr.appendChild(tdD);
-    tbody.appendChild(tr);
-  });
-
-  // ---- 回本門檻 ----
-  const unitSaving = hkPerL - cnNetHkd;
-  const note = $("breakevenNote");
-  if (unitSaving <= 0) {
-    note.textContent = "⚠️ 內地折後價折合港幣後已高於香港基準，專程北上不划算（順路加油亦無優勢）。";
-  } else {
-    const be = toll / unitSaving;
-    note.innerHTML = "💡 專程北上回本門檻：需加滿 <b>" + be.toFixed(1) + " L</b> 才可抵消 HK$" + toll.toFixed(0)
-      + " 橋費。" + (tank >= be ? "目前設定 " + tank.toFixed(1) + "L 已過門檻，專程前往划算。" : "目前設定 " + tank.toFixed(1) + "L 未達門檻，專程前往會倒蝕橋費。");
-  }
-}
-// ===== 下拉選單 =====
-function populateCardSelect() {
-  const sel = $("cardSel");
-  sel.innerHTML = "";
-  cards.forEach(c => {
-    const o = document.createElement("option");
-    o.value = c.id; o.textContent = c.description;
-    sel.appendChild(o);
-  });
-  sel.value = state.card;
-}
-
-function updateCouponList() {
-  const card = activeCard();
-  const valid = coupons.filter(c =>
-    (!c.validCardType || c.validCardType.includes(card.type)) &&
-    (!c.validFor || c.validFor.includes(state.petrol)));
-  const sel = $("couponSel");
-  sel.innerHTML = "";
-  valid.forEach(c => {
-    const o = document.createElement("option");
-    o.value = c.id; o.textContent = c.description;
-    sel.appendChild(o);
-  });
-  if (valid.length) state.coupon = valid[0].id;
-  sel.value = state.coupon;
-}
-
-function bindToggle(elId, key) {
-  const el = $(elId);
-  el.querySelectorAll("button").forEach(b => {
-    b.addEventListener("click", () => {
-      el.querySelectorAll("button").forEach(x => x.classList.remove("on"));
-      b.classList.add("on");
-      state[key] = b.dataset.p || b.dataset.t || b.dataset.m;
-      if (key === "petrol") {
-        if (!manualPrice) $("hkList").value = prices[state.petrol];
-        updateCouponList();
+    // Shell 牌價（可由 hk-petrol-price-crawler 抓取更新）
+    let SHELL_PRICES = { vpower: 36.32, fuelsave: 34.52 };
+    const SHELL_OFFERS = {
+      vpower: {
+        wed:  { cash: 14.40, max: 14.80 },
+        wknd: { cash: 13.60, max: 15.40 },
+        wkdy: { cash: 12.60, max: 14.80 }
+      },
+      fuelsave: {
+        wed:  { cash: 12.60, max: 13.00 },
+        wknd: { cash: 13.60, max: 14.00 },
+        wkdy: { cash: 12.60, max: 13.00 }
       }
-      if (key === "hkMode") applyHkMode();
-      compute();
-    });
-  });
-}
+    };
 
-// 依香港油價模式顯示／隱藏加德士拆單欄位
-function applyHkMode() {
-  const manual = state.hkMode === "manual";
-  $("caltexFields").style.display = manual ? "none" : "";
-  $("hkManualFields").style.display = manual ? "" : "none";
-  document.querySelectorAll(".caltexOnly").forEach(el => { el.style.display = manual ? "none" : ""; });
-  $("hkStatus").style.display = manual ? "none" : "";
-}
+    // ===== 加德士（對齊 hkg-deadline/caltex-discount-calc）=====
+    const CALTEX_CARDS_FALLBACK = [
+      { id: "caltex-personal-StarCard", type: "starCard", description: "私人能源卡：黃金減$11 / 白金減$12", standardDiscount: 11, premiumDiscount: 12 },
+      { id: "caltex-personal-StarCard2", type: "starCard", description: "私人能源卡：黃金減$11.5 / 白金減$12", standardDiscount: 11.5, premiumDiscount: 12 },
+      { id: "starCard-others", type: "starCard", description: "其他私人能源卡（自訂折扣）", standardDiscount: 0, premiumDiscount: 0 }
+    ];
+    const CALTEX_COUPONS_FALLBACK = [
+      { id: "starCard-350-50", description: "私人能源卡 - 入滿$350減$50", spend: 350, discount: 50, validCardType: "starCard", validFor: ["standard", "premium"] }
+    ];
+    const CALTEX_PRICES_FALLBACK = { standard: 34.72, premium: 36.52 };
 
-// ===== API 抓取 =====
-async function fetchPrices() {
-  const st = $("hkStatus");
-  st.textContent = "載入中…"; st.className = "status loading";
-  try {
-    const [cardsRes, couponsRes, pricesRes] = await Promise.all([
-      fetch(PRICE_API + "caltex-discountcards.json"),
-      fetch(PRICE_API + "caltex-coupons.json"),
-      fetch(PRICE_API + "petrolprice.json")
-    ]);
-    const cd = await cardsRes.json(), cp = await couponsRes.json(), pp = await pricesRes.json();
-    if (cd.discountCards && cd.discountCards.length) { cards = cd.discountCards; populateCardSelect(); }
-    if (cp.coupons && cp.coupons.length) coupons = cp.coupons;
-    const std = pp.find(i => i.type === "Standard Petrol");
-    const prem = pp.find(i => i.type === "Premium Petrol");
-    if (std && std.price && std.price.Caltex) prices.standard = parseFloat(std.price.Caltex);
-    if (prem && prem.price && prem.price.Caltex) prices.premium = parseFloat(prem.price.Caltex);
-    manualPrice = false;
-    $("hkList").value = prices[state.petrol];
-    updateCouponList();
-    st.textContent = "✅ 已更新牌價：標準 $" + prices.standard.toFixed(2) + " / 白金 $" + prices.premium.toFixed(2);
-    st.className = "status ok";
-  } catch (e) {
-    st.textContent = "❌ 抓取失敗，沿用內置備用數據（可點按鈕重試）";
-    st.className = "status err";
-  }
-  compute();
-}
+    const PRICE_API = "https://hkg-deadline.github.io/hk-petrol-price-crawler/json/";
+    const CN_APIS = {
+      apihz: "https://cn.apihz.cn/api/jinrong/youjia.php",
+      showapi: "https://ali-todayoil.showapi.com/todayoil",
+      istero: "https://api.istero.com/resource/v2/oilprice",
+      mxnzp: "https://www.mxnzp.com/api/oil/search"
+    };
+    // 匯率來源（依序嘗試）：jsDelivr CDN → Cloudflare 鏡像 → exchangerate.fun → open.er-api
+    const FX_SOURCES = [
+      { url: "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/cny.json", pick: j => j && j.cny && j.cny.hkd },
+      { url: "https://latest.currency-api.pages.dev/v1/currencies/cny.json", pick: j => j && j.cny && j.cny.hkd },
+      { url: "https://api.exchangerate.fun/latest?base=CNY", pick: j => j && j.rates && j.rates.HKD },
+      { url: "https://open.er-api.com/v6/latest/CNY", pick: j => j && j.rates && j.rates.HKD }
+    ];
+    const CONSUMER_COUNCIL_URL = "https://www.consumer.org.hk/pricewatch/oilwatch/opendata/oilprice.json";
 
-async function fetchFx() {
-  const st = $("fxStatus");
-  st.textContent = "載入中…"; st.className = "status loading";
-  let rate = null;
-  for (const url of [FX_API, FX_API2]) {
-    try {
-      const j = await (await fetch(url)).json();
-      if (j.rates && j.rates.HKD) { rate = j.rates.HKD; break; }
-    } catch (e) { /* try next */ }
-  }
-  if (rate) {
-    $("fx").value = rate.toFixed(4);
-    st.textContent = "✅ 已更新匯率 1 CNY = " + rate.toFixed(4) + " HKD";
-    st.className = "status ok";
-  } else {
-    st.textContent = "❌ 抓取失敗，請手動輸入";
-    st.className = "status err";
-  }
-  compute();
-}
+    let caltexCards = CALTEX_CARDS_FALLBACK.slice();
+    let caltexCoupons = CALTEX_COUPONS_FALLBACK.slice();
+    let caltexPrices = Object.assign({}, CALTEX_PRICES_FALLBACK);
+    let caltexManualPrice = false;
 
-// 在（可能嵌套的）物件中遞迴尋找 98# 價格欄位
-function extract98(item) {
-  if (Array.isArray(item)) {
-    for (const el of item) { const f = extract98(el); if (f != null) return f; }
-    return null;
-  }
-  if (!item || typeof item !== "object") return null;
-  for (const [key, val] of Object.entries(item)) {
-    const norm = String(key).toLowerCase().replace(/[_\- ]/g, "");
-    if (["p98", "98", "price98", "oil98", "p98price", "no98"].includes(norm)) {
-      const n = parseFloat(val);
-      if (!isNaN(n)) return n;
+    function setLiters(val) { document.getElementById('fuelLiters').value = val; calculateAll(); }
+
+    // ---------- Shell ----------
+    function setShellFuel(type) {
+      currentShellFuel = type;
+      document.getElementById('btn-vpower').className = type === 'vpower' ? 'text-xs py-1.5 rounded font-bold tab-active' : 'text-xs py-1.5 rounded font-medium text-slate-400';
+      document.getElementById('btn-fuelsave').className = type === 'fuelsave' ? 'text-xs py-1.5 rounded font-bold tab-active' : 'text-xs py-1.5 rounded font-medium text-slate-400';
+      document.getElementById('hks_base').value = SHELL_PRICES[type].toFixed(2);
+      updateShellBySelection();
     }
-    if (val && typeof val === "object") { const f = extract98(val); if (f != null) return f; }
-  }
-  return null;
-}
-
-// 解析 ShowAPI「今日油價」回應
-function parseShowapi(payload, prov) {
-  if (typeof payload === "string") payload = JSON.parse(payload);
-  if (!payload || typeof payload !== "object") throw new Error("回應格式非預期");
-  const code = payload.showapi_res_code;
-  if (code !== undefined && code !== 0 && code !== "0") {
-    throw new Error(payload.showapi_res_error || ("code=" + code));
-  }
-  const body = payload.showapi_res_body || payload;
-  const items = [];
-  for (const k of ["list", "data", "result", "rows", "items"]) {
-    if (Array.isArray(body[k])) items.push(...body[k]);
-    else if (body[k] && typeof body[k] === "object") items.push(body[k]);
-  }
-  items.push(body);
-  items.sort((a, b) => (String((a && a.prov) || "").trim() === prov ? 0 : 1) - (String((b && b.prov) || "").trim() === prov ? 0 : 1));
-  for (const it of items) { const p = extract98(it); if (p != null && p > 0) return p; }
-  throw new Error("找不到 98# 價格欄位");
-}
-
-async function fetchCnPrice() {
-  const st = $("cnStatus");
-  const source = $("cnSource").value;
-  const key = $("cnKey").value.trim();
-  const idVal = $("cnId").value.trim();
-  const needId = source === "apihz";
-  const keyName = needId ? "開發者 KEY" : (source === "showapi" ? "APPCODE" : "起零數據 token");
-  if (!key || (needId && !idVal)) {
-    st.textContent = "⚠️ 請先展開「優惠規則 + API 設定」填入 " + (needId ? "開發者 ID 與 KEY" : keyName);
-    st.className = "status err";
-    return;
-  }
-  st.textContent = "載入中…"; st.className = "status loading";
-  try {
-    if (source === "apihz") {
-      const q = new URLSearchParams({ id: idVal, key: key, sheng: "广东" });
-      const j = await (await fetch(APIHZ_CN_URL + "?" + q.toString())).json();
-      const price = parseApihz(j);
-      $("cnPrice").value = price;
-      st.textContent = "✅ 已更新：廣東 98# ¥" + price + "/L（接口盒子）";
-      st.className = "status ok";
-    } else if (source === "showapi") {
-      const res = await fetch(SHOWAPI_CN_URL + "?prov=" + encodeURIComponent("广东"), {
-        headers: { "Authorization": "APPCODE " + key }
+    function applyShellGoPlus(dayMode) {
+      currentShellDay = dayMode;
+      ['wed', 'wknd', 'wkdy'].forEach(d => {
+        const el = document.getElementById('btn-day-' + d);
+        if (d === dayMode) el.classList.add('ring-2', 'ring-sky-400', 'bg-slate-700');
+        else el.classList.remove('ring-2', 'ring-sky-400', 'bg-slate-700');
       });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const price = parseShowapi(await res.text(), "广东");
-      $("cnPrice").value = price;
-      st.textContent = "✅ 已更新：廣東 98# ¥" + price + "/L（ShowAPI）";
-      st.className = "status ok";
-    } else {
-      const j = await (await fetch(CN_API + "?token=" + encodeURIComponent(key) + "&keyword=" + encodeURIComponent("广东"))).json();
-      if (j.data && j.data.p98 && j.data.p98.price) {
-        $("cnPrice").value = j.data.p98.price;
-        st.textContent = "✅ 已更新（" + (j.data.date || "廣東 98#") + "，起零數據）";
-        st.className = "status ok";
+      updateShellBySelection();
+    }
+    function updateShellBySelection() {
+      const incPts = document.getElementById('hks_inc_pts').checked;
+      const offer = SHELL_OFFERS[currentShellFuel][currentShellDay];
+      document.getElementById('hks_disc').value = (incPts ? offer.max : offer.cash).toFixed(2);
+      calculateAll();
+    }
+
+    // ---------- Caltex ----------
+    function currentCaltexCard() {
+      const id = document.getElementById('cal_card').value;
+      if (id === 'starCard-others') {
+        const cv = parseFloat(document.getElementById('cal_custom').value) || 0;
+        return { type: 'starCard', standardDiscount: cv, premiumDiscount: cv };
+      }
+      return caltexCards.find(c => c.id === id) || caltexCards[0];
+    }
+    function currentCaltexCoupon() {
+      const id = document.getElementById('cal_coupon').value;
+      return caltexCoupons.find(c => c.id === id) || { spend: 0, discount: 0 };
+    }
+    function buildCaltexSelects() {
+      const cardSel = document.getElementById('cal_card');
+      const prev = cardSel.value;
+      cardSel.innerHTML = '';
+      caltexCards.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.description; cardSel.appendChild(o); });
+      if (prev && Array.from(cardSel.options).some(o => o.value === prev)) cardSel.value = prev;
+      onCaltexCardChange(true);
+    }
+    function onCaltexCardChange(recalc) {
+      const isOthers = document.getElementById('cal_card').value === 'starCard-others';
+      document.getElementById('cal_custom_wrap').style.display = isOthers ? '' : 'none';
+      const card = currentCaltexCard();
+      const list = caltexCoupons.filter(c =>
+        (!c.validCardType || c.validCardType.includes(card.type)) &&
+        (!c.validFor || c.validFor.includes(caltexPetrol)));
+      const sel = document.getElementById('cal_coupon');
+      const prev = sel.value;
+      sel.innerHTML = '';
+      if (list.length) {
+        list.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.description; sel.appendChild(o); });
+        if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
       } else {
-        throw new Error("返回異常 code=" + (j.code || "?"));
+        sel.appendChild(new Option('（此卡別／油品無可用油券）', ''));
       }
+      if (recalc !== false) calculateAll();
     }
-  } catch (e) {
-    st.textContent = "❌ 抓取失敗（" + (e && e.message ? e.message : "CORS 或網絡") + "），請手動輸入";
-    st.className = "status err";
-  }
-  compute();
-}
+    function setCaltexPetrol(type) {
+      caltexPetrol = type;
+      document.getElementById('cal-btn-std').className = type === 'standard' ? 'text-xs py-1.5 rounded font-bold tab-active' : 'text-xs py-1.5 rounded font-medium text-slate-400';
+      document.getElementById('cal-btn-prem').className = type === 'premium' ? 'text-xs py-1.5 rounded font-bold tab-active' : 'text-xs py-1.5 rounded font-medium text-slate-400';
+      if (!caltexManualPrice) document.getElementById('cal_base').value = caltexPrices[type].toFixed(2);
+      onCaltexCardChange(true);
+    }
+    // 忠實移植 caltex-discount-calc / js/main.js 的拆單券後實付算法
+    function calcCaltex(listPrice, cardDiscount, spend, couponValue) {
+      const discountedPrice = listPrice - cardDiscount;
+      const totalLiters = spend / listPrice;
+      const paidLiters = (spend - couponValue) / listPrice;
+      const freeLiters = totalLiters - paidLiters;
+      const amountPaid = paidLiters * discountedPrice;
+      const actualPrice = amountPaid / totalLiters;
+      return { discountedPrice, totalLiters, paidLiters, freeLiters, amountPaid, actualPrice };
+    }
 
-// 解析接口盒子「全國油價查詢」回應
-// 官方結構：{code:200, sheng, date, data:{data1:{98:..}, data2:{..}}}（多價區在 data2）
-// 亦兼容頂層 data1/data2；依序取第一個非 null 的 98
-function parseApihz(payload) {
-  if (!payload || typeof payload !== "object") throw new Error("回應格式非預期");
-  if (payload.code !== 200 && payload.code !== "200") throw new Error(payload.msg || ("code=" + payload.code));
-  const root = (payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)) ? payload.data : payload;
-  const zones = Object.keys(root).filter(k => /^data\d*$/i.test(k)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  const candidates = zones.map(z => root[z]);
-  if (root["98"] !== undefined) candidates.push(root);
-  for (const zone of candidates) {
-    if (zone && typeof zone === "object") {
-      const v = zone["98"];
-      if (v !== null && v !== undefined && v !== "" && v !== "null") {
-        const n = parseFloat(v);
-        if (!isNaN(n)) return n;
+    function applyZhPreset(base, disc, vmin, vval) {
+      document.getElementById('zhs_base').value = Number(base).toFixed(2);
+      document.getElementById('zhs_disc').value = Number(disc).toFixed(2);
+      document.getElementById('zhs_v_min').value = vmin;
+      document.getElementById('zhs_v_val').value = vval;
+      calculateAll();
+    }
+    // 珠海 Shell 日期優惠：逢週三/六 −¥0.98；逢 8／18／28 號 −¥1.88（不疊加，取較大）
+    function applyZhuhaiRules() {
+      const el = document.getElementById('zhs_date');
+      const d = (el && el.value) ? new Date(el.value + 'T00:00:00') : new Date();
+      const day = d.getDate(), wd = d.getDay();
+      const a8 = parseFloat(document.getElementById('zhs_rule_d8').value) || 0;
+      const aw = parseFloat(document.getElementById('zhs_rule_dw').value) || 0;
+      const hit8 = (day === 8 || day === 18 || day === 28);
+      const hitW = (wd === 3 || wd === 6);
+      let disc = 0, label = '無特殊優惠';
+      let cls = 'bg-slate-800 text-slate-300 border-slate-600';
+      if (hit8 && hitW) {
+        disc = Math.max(a8, aw);
+        label = `8／18／28 + 週三六（取最平 −¥${disc.toFixed(2)}）`;
+        cls = a8 >= aw ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-sky-500/20 text-sky-300 border-sky-500/40';
+      } else if (hit8) {
+        disc = a8;
+        label = `8／18／28 特惠 −¥${a8.toFixed(2)}`;
+        cls = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+      } else if (hitW) {
+        disc = aw;
+        label = `週三／六特惠 −¥${aw.toFixed(2)}`;
+        cls = 'bg-sky-500/20 text-sky-300 border-sky-500/40';
       }
+      const badge = document.getElementById('zhs_rule_badge');
+      badge.textContent = label;
+      badge.className = 'px-2 py-0.5 text-[11px] font-semibold rounded-full border ' + cls;
+      document.getElementById('zhs_disc').value = disc.toFixed(2);
+      calculateAll();
     }
-  }
-  const found = extract98(root);
-  if (found != null && found > 0) return found;
-  throw new Error("找不到 98# 價格欄位（價區：" + (zones.join(", ") || "無") + "）");
-}
 
-// 依內地油價來源切換欄位標籤與 ID 欄位顯示
-function applyCnSource() {
-  const src = $("cnSource").value;
-  const apihz = src === "apihz";
-  $("cnIdField").style.display = apihz ? "" : "none";
-  $("cnKeyLabel").textContent = apihz ? "開發者 KEY" : (src === "showapi" ? "APPCODE" : "起零數據 token");
-  $("cnKey").placeholder = apihz ? "KEY" : (src === "showapi" ? "APPCODE" : "token");
-}
+    function saveAndCalc() {
+      try {
+        localStorage.setItem('hkzh_fx', document.getElementById('exchangeRate').value);
+        localStorage.setItem('hkzh_hks_cc', document.getElementById('hks_cc').value);
+        localStorage.setItem('hkzh_cal_cc', document.getElementById('cal_cc').value);
+        localStorage.setItem('hkzh_zhs_base', document.getElementById('zhs_base').value);
+      } catch (e) {}
+      calculateAll();
+    }
 
-// ===== 初始化 =====
-function init() {
-  $("fuelDate").value = new Date().toISOString().slice(0, 10);
-  populateCardSelect();
-  updateCouponList();
-  applyAutoDiscount();
+    function calculateAll() {
+      const liters = parseFloat(document.getElementById('fuelLiters').value) || 1;
+      const fx = parseFloat(document.getElementById('exchangeRate').value) || 1.08;
 
-  bindToggle("petrolToggle", "petrol");
-  bindToggle("tripToggle", "trip");
-  bindToggle("hkModeToggle", "hkMode");
-  applyHkMode();
+      // 1. HK Shell
+      const hksBase = parseFloat(document.getElementById('hks_base').value) || 0;
+      const hksDisc = parseFloat(document.getElementById('hks_disc').value) || 0;
+      const hksVMin = parseFloat(document.getElementById('hks_v_min').value) || 0;
+      const hksVVal = parseFloat(document.getElementById('hks_v_val').value) || 0;
+      const hksCC = parseFloat(document.getElementById('hks_cc').value) || 0;
 
-  ["hkList", "customDisc", "cnPrice", "cnDisc", "fx", "tank", "bridge", "hkManualPrice", "disc8", "discWed"].forEach(id => {
-    $(id).addEventListener("input", () => { if (id === "hkList") manualPrice = true; compute(); });
-  });
+      const hksGross = hksBase * liters;
+      const hksAfterCard = Math.max(0, (hksBase - hksDisc) * liters);
+      const hksVoucher = (hksVMin > 0 && hksAfterCard >= hksVMin) ? hksVVal : 0;
+      const hksFinal = Math.max(0, (hksAfterCard - hksVoucher) * (1 - hksCC / 100));
+      const hksNetL = hksFinal / liters;
+      const hksPct = hksGross > 0 ? ((hksGross - hksFinal) / hksGross * 100) : 0;
 
-  $("fuelDate").addEventListener("change", () => { applyAutoDiscount(); compute(); });
-  $("disc8").addEventListener("change", () => { applyAutoDiscount(); compute(); });
-  $("discWed").addEventListener("change", () => { applyAutoDiscount(); compute(); });
+      document.getElementById('hks_net_per_l').innerHTML = `HK$ ${hksNetL.toFixed(2)} <span class="text-xs font-normal text-slate-400">/L</span>`;
+      document.getElementById('hks_total').innerText = `HK$ ${hksFinal.toFixed(2)}`;
+      document.getElementById('hks_pct').innerText = `${hksPct.toFixed(1)}% OFF`;
+      document.getElementById('hks_saved').innerText = `共慳 HK$ ${(hksGross - hksFinal).toFixed(1)}`;
 
-  $("cardSel").addEventListener("change", () => {
-    state.card = $("cardSel").value;
-    $("customDiscField").style.display = state.card === "starCard-others" ? "" : "none";
-    updateCouponList();
-    compute();
-  });
-  $("couponSel").addEventListener("change", () => { state.coupon = $("couponSel").value; compute(); });
+      // 2. HK Caltex（折扣卡 + 油券拆單）
+      const calBase = parseFloat(document.getElementById('cal_base').value) || 0;
+      const calCard = currentCaltexCard();
+      const calCardDisc = caltexPetrol === 'standard' ? calCard.standardDiscount : calCard.premiumDiscount;
+      const calCoupon = currentCaltexCoupon();
+      const calCC = parseFloat(document.getElementById('cal_cc').value) || 0;
+      const calGross = calBase * liters;
 
-  $("btnPrice").addEventListener("click", fetchPrices);
-  $("btnFx").addEventListener("click", fetchFx);
-  $("btnCn").addEventListener("click", fetchCnPrice);
-  $("cnSource").addEventListener("change", () => {
-    applyCnSource();
-    $("cnKey").value = "";
-    $("cnId").value = "";
-  });
-  applyCnSource();
+      const calRes = (calBase > 0 && calCardDisc >= 0 && calCardDisc < calBase && calCoupon.spend > 0)
+        ? calcCaltex(calBase, calCardDisc, calCoupon.spend, calCoupon.discount) : null;
 
-  compute();
-  fetchPrices();
-  fetchFx();
-}
+      let calNetL, calFinal;
+      if (calRes) {
+        calNetL = calRes.actualPrice;
+        calFinal = Math.max(0, calNetL * liters * (1 - calCC / 100));
+        document.getElementById('cal_after_card').textContent = `HK$ ${calRes.discountedPrice.toFixed(2)}/L`;
+        document.getElementById('cal_liters').textContent = `${calRes.totalLiters.toFixed(2)} / ${calRes.freeLiters.toFixed(2)} L`;
+        document.getElementById('cal_per_coupon').textContent = `HK$ ${calRes.amountPaid.toFixed(2)}（滿$${calCoupon.spend}減$${calCoupon.discount}）`;
+        document.getElementById('cal_split').textContent = `${Math.ceil(liters / calRes.totalLiters)} 張券`;
+      } else {
+        calNetL = calBase;
+        calFinal = Math.max(0, calGross * (1 - calCC / 100));
+        ['cal_after_card', 'cal_liters', 'cal_per_coupon', 'cal_split'].forEach(id => document.getElementById(id).textContent = '-');
+      }
+      const calPct = calGross > 0 ? ((calGross - calFinal) / calGross * 100) : 0;
+      document.getElementById('cal_net_per_l').innerHTML = `HK$ ${calNetL.toFixed(2)} <span class="text-xs font-normal text-slate-400">/L</span>`;
+      document.getElementById('cal_total').innerText = `HK$ ${calFinal.toFixed(2)}`;
+      document.getElementById('cal_pct').innerText = `${calPct.toFixed(1)}% OFF`;
+      document.getElementById('cal_saved').innerText = `共慳 HK$ ${(calGross - calFinal).toFixed(1)}`;
 
-document.addEventListener("DOMContentLoaded", init);
-</script>
+      // 3. Zhuhai Shell
+      const zhsBase = parseFloat(document.getElementById('zhs_base').value) || 0;
+      const zhsDisc = parseFloat(document.getElementById('zhs_disc').value) || 0;
+      const zhsVMin = parseFloat(document.getElementById('zhs_v_min').value) || 0;
+      const zhsVVal = parseFloat(document.getElementById('zhs_v_val').value) || 0;
+      const zhsExtra = parseFloat(document.getElementById('zhs_extra_hkd').value) || 0;
+
+      const zhsAfterCardRMB = Math.max(0, (zhsBase - zhsDisc) * liters);
+      const zhsVoucherRMB = (zhsVMin > 0 && zhsAfterCardRMB >= zhsVMin) ? zhsVVal : 0;
+      const zhsFinalRMB = Math.max(0, zhsAfterCardRMB - zhsVoucherRMB);
+      const zhsFinalHKD = (zhsFinalRMB * fx) + zhsExtra;
+      const zhsNetLHKD = zhsFinalHKD / liters;
+      const zhsFold = hksBase > 0 ? (zhsNetLHKD / hksBase * 10) : 0;
+
+      document.getElementById('zhs_net_per_l').innerHTML = `HK$ ${zhsNetLHKD.toFixed(2)} <span class="text-xs font-normal text-slate-400">/L</span>`;
+      document.getElementById('zhs_total').innerHTML = `HK$ ${zhsFinalHKD.toFixed(2)} <span class="text-xs text-amber-300 font-normal">(¥${zhsFinalRMB.toFixed(2)})</span>`;
+      document.getElementById('zhs_vs_hk_pct').innerText = `${zhsFold.toFixed(1)} 折`;
+      document.getElementById('zhs_saved_vs_hk').innerText = `比香港牌價平 HK$ ${(hksGross - zhsFinalHKD).toFixed(0)}`;
+
+      // Winner
+      const shellWinsHK = hksFinal <= calFinal;
+      document.getElementById('badge-hkshell').classList.toggle('hidden', !shellWinsHK);
+      document.getElementById('badge-caltex').classList.toggle('hidden', shellWinsHK);
+      const bestHKFinal = Math.min(hksFinal, calFinal);
+      const bestHKName = shellWinsHK ? "香港 Shell" : "香港 Caltex";
+      const hkDiff = Math.abs(hksFinal - calFinal);
+      document.getElementById('hkWinnerText').innerText = `${bestHKName} 勝 (平 HK$${hkDiff.toFixed(1)})`;
+      const zhSave = bestHKFinal - zhsFinalHKD;
+      document.getElementById('zhuhaiSaveText').innerText = zhSave > 0 ? `再慳 HK$${zhSave.toFixed(0)}` : `計路費後香港較平`;
+
+      ['card-hkshell', 'card-caltex', 'card-zhshell'].forEach(id => document.getElementById(id).classList.remove('winner-card'));
+      if (zhsFinalHKD <= bestHKFinal) document.getElementById('card-zhshell').classList.add('winner-card');
+      else if (shellWinsHK) document.getElementById('card-hkshell').classList.add('winner-card');
+      else document.getElementById('card-caltex').classList.add('winner-card');
+
+      document.getElementById('bestChoiceTitle').innerText = `${bestHKName} 折後 HK$ ${(bestHKFinal / liters).toFixed(2)}/L ｜ 珠海 Shell 折合 HK$ ${zhsNetLHKD.toFixed(2)}/L`;
+      document.getElementById('bestChoiceSub').innerText = `在香港入 ${liters}L 選「${bestHKName}」可比對手平 HK$ ${hkDiff.toFixed(1)}；若順路北上珠海入油可比香港最抵方案再省 HK$ ${Math.max(0, zhSave).toFixed(1)}。`;
+    }
+
+    // ===== 自動抓價 =====
+    function status(elId, msg, cls) {
+      const el = document.getElementById(elId);
+      const pre = cls === 'ok' ? '✅ ' : cls === 'err' ? '❌ ' : cls === 'load' ? '⏳ ' : '';
+      el.textContent = pre + msg;
+      el.className = 'text-[11px] ' + (cls === 'ok' ? 'text-emerald-400' : cls === 'err' ? 'text-rose-400' : cls === 'load' ? 'text-amber-300' : 'text-slate-400');
+    }
+    function applyCnSource() {
+      const src = document.getElementById('cn_source').value;
+      const needId = (src === 'apihz' || src === 'mxnzp');
+      document.getElementById('cn_id_wrap').style.display = needId ? '' : 'none';
+      const idLabel = document.getElementById('cn_id_label');
+      if (idLabel) idLabel.textContent = src === 'mxnzp' ? 'app_id' : '開發者 ID';
+      document.getElementById('cn_key_label').textContent =
+        src === 'apihz' ? '開發者 KEY' : src === 'mxnzp' ? 'app_secret' : (src === 'showapi' ? 'APPCODE' : '起零數據 token');
+      document.getElementById('cn_key').placeholder =
+        src === 'apihz' ? 'KEY' : src === 'mxnzp' ? 'app_secret' : (src === 'showapi' ? 'APPCODE' : 'token');
+    }
+    function extract98(item) {
+      if (Array.isArray(item)) { for (const el of item) { const f = extract98(el); if (f != null) return f; } return null; }
+      if (!item || typeof item !== 'object') return null;
+      for (const [k, v] of Object.entries(item)) {
+        const n = String(k).toLowerCase().replace(/[_\- ]/g, '');
+        if (['p98', '98', 'price98', 'oil98', 'p98price', 'no98'].includes(n)) { const x = parseFloat(v); if (!isNaN(x)) return x; }
+        if (v && typeof v === 'object') { const f = extract98(v); if (f != null) return f; }
+      }
+      return null;
+    }
+    function parseShowapi(payload, prov) {
+      if (typeof payload === 'string') payload = JSON.parse(payload);
+      if (!payload || typeof payload !== 'object') throw new Error('回應格式非預期');
+      const code = payload.showapi_res_code;
+      if (code !== undefined && code !== 0 && code !== '0') throw new Error(payload.showapi_res_error || ('code=' + code));
+      const body = payload.showapi_res_body || payload;
+      const items = [];
+      for (const k of ['list', 'data', 'result', 'rows', 'items']) {
+        if (Array.isArray(body[k])) items.push(...body[k]);
+        else if (body[k] && typeof body[k] === 'object') items.push(body[k]);
+      }
+      items.push(body);
+      items.sort((a, b) => (String((a && a.prov) || '').trim() === prov ? 0 : 1) - (String((b && b.prov) || '').trim() === prov ? 0 : 1));
+      for (const it of items) { const p = extract98(it); if (p != null && p > 0) return p; }
+      throw new Error('找不到 98# 價格欄位');
+    }
+    // 接口盒子「全國油價」：官方結構為 {code:200, sheng, date, data:{data1:{98:..}, data2:{..}}}
+    // （多價區省份如四川在 data2），亦兼容頂層 data1/data2；依序取第一個非 null 的 98。
+    function parseApihz(payload) {
+      if (!payload || typeof payload !== 'object') throw new Error('回應格式非預期');
+      if (payload.code !== 200 && payload.code !== '200') throw new Error(payload.msg || ('code=' + payload.code));
+      const root = (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) ? payload.data : payload;
+      const zones = Object.keys(root)
+        .filter(k => /^data\d*$/i.test(k))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      const candidates = zones.map(z => root[z]);
+      if (root['98'] !== undefined) candidates.push(root);
+      for (const zone of candidates) {
+        if (zone && typeof zone === 'object') {
+          const v = zone['98'];
+          if (v !== null && v !== undefined && v !== '' && v !== 'null') { const n = parseFloat(v); if (!isNaN(n)) return n; }
+        }
+      }
+      const found = extract98(root);
+      if (found != null && found > 0) return found;
+      throw new Error('找不到 98# 價格欄位（價區：' + (zones.join(', ') || '無') + '）');
+    }
+    // RollToolsApi（mxnzp.com）：{code:1, data:{t98:"9.79"}}
+    function parseMxnzp(payload) {
+      if (!payload || typeof payload !== 'object') throw new Error('回應格式非預期');
+      if (payload.code !== 1 && payload.code !== '1') throw new Error(payload.msg || ('code=' + payload.code));
+      const d = payload.data || {};
+      for (const k of ['t98', '98', 'p98']) {
+        const v = d[k];
+        if (v !== null && v !== undefined && v !== '') { const n = parseFloat(v); if (!isNaN(n)) return n; }
+      }
+      throw new Error('找不到 98# 價格欄位');
+    }
+    // 消委會「油價資訊通」官方 JSON 結構：[{type:{en}, prices:[{vendor:{en}, price}]}]
+    function parseConsumerCouncil(data, typeEn, vendorEn) {
+      const t = String(typeEn).toLowerCase(), v = String(vendorEn).toLowerCase();
+      for (const block of (Array.isArray(data) ? data : [])) {
+        const bt = String((block.type && block.type.en) || '').toLowerCase();
+        if (!bt.includes(t)) continue;
+        for (const p of (block.prices || [])) {
+          const bv = String((p.vendor && p.vendor.en) || '').toLowerCase();
+          if (bv.includes(v)) { const n = parseFloat(p.price); if (!isNaN(n)) return n; }
+        }
+      }
+      return null;
+    }
+    async function fetchHkPrices() {
+      status('hk_status', '載入中…', 'load');
+      try {
+        const [c, cp, p] = await Promise.all([
+          fetch(PRICE_API + 'caltex-discountcards.json').then(r => r.json()),
+          fetch(PRICE_API + 'caltex-coupons.json').then(r => r.json()),
+          fetch(PRICE_API + 'petrolprice.json').then(r => r.json())
+        ]);
+        if (c.discountCards && c.discountCards.length) caltexCards = c.discountCards;
+        if (cp.coupons && cp.coupons.length) caltexCoupons = cp.coupons;
+        const std = p.find(i => i.type === 'Standard Petrol');
+        const prem = p.find(i => i.type === 'Premium Petrol');
+        if (std && std.price.Caltex) caltexPrices.standard = parseFloat(std.price.Caltex);
+        if (prem && prem.price.Caltex) caltexPrices.premium = parseFloat(prem.price.Caltex);
+        if (std && std.price.Shell) SHELL_PRICES.fuelsave = parseFloat(std.price.Shell);
+        if (prem && prem.price.Shell) SHELL_PRICES.vpower = parseFloat(prem.price.Shell);
+        caltexManualPrice = false;
+        document.getElementById('cal_base').value = caltexPrices[caltexPetrol].toFixed(2);
+        document.getElementById('hks_base').value = SHELL_PRICES[currentShellFuel].toFixed(2);
+        buildCaltexSelects();
+        status('hk_status', `已更新：Caltex 黃金 $${caltexPrices.standard.toFixed(2)}／白金 $${caltexPrices.premium.toFixed(2)}；Shell V-Power $${SHELL_PRICES.vpower.toFixed(2)}／FuelSave $${SHELL_PRICES.fuelsave.toFixed(2)}`, 'ok');
+      } catch (e) {
+        // 備援：直接讀取消委會「油價資訊通」官方 JSON（需經 CORS 代理，可能失效）
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 7000);
+          const res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(CONSUMER_COUNCIL_URL), { signal: ctrl.signal });
+          clearTimeout(timer);
+          const data = await res.json();
+          const calStd = parseConsumerCouncil(data, 'standard', 'caltex');
+          const calPrem = parseConsumerCouncil(data, 'premium', 'caltex');
+          const shStd = parseConsumerCouncil(data, 'standard', 'shell');
+          const shPrem = parseConsumerCouncil(data, 'premium', 'shell');
+          if (calStd) caltexPrices.standard = calStd;
+          if (calPrem) caltexPrices.premium = calPrem;
+          if (shStd) SHELL_PRICES.fuelsave = shStd;
+          if (shPrem) SHELL_PRICES.vpower = shPrem;
+          if (calStd || calPrem) {
+            caltexManualPrice = false;
+            document.getElementById('cal_base').value = caltexPrices[caltexPetrol].toFixed(2);
+            document.getElementById('hks_base').value = SHELL_PRICES[currentShellFuel].toFixed(2);
+            status('hk_status', `已更新（消委會直連）：Caltex $${caltexPrices.standard.toFixed(2)}／$${caltexPrices.premium.toFixed(2)}`, 'ok');
+          } else {
+            throw new Error('no data');
+          }
+        } catch (e2) {
+          status('hk_status', '抓取失敗，沿用內建預設值（可重試）', 'err');
+        }
+      }
+      calculateAll();
+    }
+    async function fetchFx() {
+      status('fx_status', '載入中…', 'load');
+      let rate = null;
+      let used = '';
+      for (const src of FX_SOURCES) {
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 8000);
+          const j = await (await fetch(src.url, { signal: ctrl.signal })).json();
+          clearTimeout(timer);
+          const v = src.pick(j);
+          if (v) { rate = parseFloat(v); used = src.url.includes('jsdelivr') ? 'jsDelivr CDN' : src.url.includes('currency-api') ? 'Cloudflare 鏡像' : src.url.includes('exchangerate.fun') ? 'exchangerate.fun' : 'open.er-api'; break; }
+        } catch (e) {}
+      }
+      if (rate) { document.getElementById('exchangeRate').value = rate.toFixed(4); status('fx_status', `已更新 1 ¥ = HK$${rate.toFixed(4)}（${used}）`, 'ok'); }
+      else status('fx_status', '抓取失敗，請手動輸入', 'err');
+      calculateAll();
+    }
+    async function fetchCnPrice() {
+      const src = document.getElementById('cn_source').value;
+      const key = document.getElementById('cn_key').value.trim();
+      const id = document.getElementById('cn_id').value.trim();
+      const prov = document.getElementById('cn_prov').value.trim() || '广东';
+      const needId = (src === 'apihz' || src === 'mxnzp');
+      if (!key || (needId && !id)) {
+        status('cn_status', '請先填入 ' + (src === 'apihz' ? '開發者 ID 與 KEY' : src === 'mxnzp' ? 'app_id 與 app_secret' : (src === 'showapi' ? 'APPCODE' : '起零數據 token')), 'err');
+        return;
+      }
+      status('cn_status', '載入中…', 'load');
+      try {
+        let price;
+        let extra = '';
+        if (src === 'apihz') {
+          const q = new URLSearchParams({ id: id, key: key, sheng: prov });
+          const j = await (await fetch(CN_APIS.apihz + '?' + q.toString())).json();
+          price = parseApihz(j);
+          if (j && j.date) extra = `（調價日 ${j.date}）`;
+        } else if (src === 'mxnzp') {
+          const q = new URLSearchParams({ province: prov, app_id: id, app_secret: key });
+          price = parseMxnzp(await (await fetch(CN_APIS.mxnzp + '?' + q.toString())).json());
+        } else if (src === 'showapi') {
+          const res = await fetch(CN_APIS.showapi + '?prov=' + encodeURIComponent(prov), { headers: { 'Authorization': 'APPCODE ' + key } });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          price = parseShowapi(await res.text(), prov);
+        } else {
+          const j = await (await fetch(CN_APIS.istero + '?token=' + encodeURIComponent(key) + '&keyword=' + encodeURIComponent(prov))).json();
+          if (!(j.data && j.data.p98 && j.data.p98.price)) throw new Error('返回異常 code=' + (j.code || '?'));
+          price = parseFloat(j.data.p98.price);
+        }
+        document.getElementById('zhs_base').value = price;
+        const srcName = { apihz: '接口盒子', mxnzp: 'RollToolsApi', showapi: 'ShowAPI', istero: '起零數據' }[src];
+        status('cn_status', `已更新：${prov} 98# ¥${price}/L（${srcName}）${extra}`, 'ok');
+      } catch (e) {
+        status('cn_status', '抓取失敗（' + (e && e.message ? e.message : 'CORS 或網絡') + '），請手動輸入', 'err');
+      }
+      calculateAll();
+    }
+
+    window.onload = function() {
+      try {
+        if (localStorage.getItem('hkzh_fx')) document.getElementById('exchangeRate').value = localStorage.getItem('hkzh_fx');
+        if (localStorage.getItem('hkzh_hks_cc')) document.getElementById('hks_cc').value = localStorage.getItem('hkzh_hks_cc');
+        if (localStorage.getItem('hkzh_cal_cc')) document.getElementById('cal_cc').value = localStorage.getItem('hkzh_cal_cc');
+        if (localStorage.getItem('hkzh_zhs_base')) document.getElementById('zhs_base').value = localStorage.getItem('hkzh_zhs_base');
+      } catch (e) {}
+
+      const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+      const d = new Date().getDay();
+      document.getElementById('currentDayBadge').innerText = `今日：${dayNames[d]}（已自動匹配神券）`;
+
+      applyCnSource();
+      buildCaltexSelects();
+      document.getElementById('cal_base').addEventListener('input', () => { caltexManualPrice = true; });
+
+      // 珠海：預設今日並套用日期優惠
+      const zhsDateEl = document.getElementById('zhs_date');
+      const t = new Date();
+      zhsDateEl.value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+      applyZhuhaiRules();
+
+      if (d === 3) applyShellGoPlus('wed');
+      else if (d === 0 || d === 6) applyShellGoPlus('wknd');
+      else applyShellGoPlus('wkdy');
+
+      calculateAll();
+      fetchHkPrices();
+      fetchFx();
+    };
+  </script>
 </body>
 </html>
