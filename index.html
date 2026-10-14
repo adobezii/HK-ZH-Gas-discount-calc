@@ -14,7 +14,35 @@
     .winner-card { border: 2px solid #10b981; box-shadow: 0 0 25px rgba(16, 185, 129, 0.18); }
     input[type="number"], select { background: #0b111e; border: 1px solid #334155; color: #fff; }
     input[type="number"]:focus, select:focus { outline: none; border-color: #38bdf8; }
-    .tab-active { background-color: #0284c7; color: #fff; border-color: #38bdf8; }
+   .tab-active { background-color: #0284c7; color: #fff; border-color: #38bdf8; }
+
+    /* ===== 易讀度：數字對齊、欄位識別、對比 ===== */
+    /* 所有數值用等寬數字，掃視時位數會對齊 */
+    [id$="_total"], [id$="_net_per_l"], [id$="_pct"], [id$="_saved"], [id$="_saved_vs_hk"],
+    [id$="_liters"], [id$="_free_liters"], [id$="_per_coupon"], [id$="_split"], [id$="_after_card"],
+    [id$="_equiv"], [id$="_breakeven"], [id$="_hint"], [id$="_toll_hkd"], [id$="_vs_hk_pct"],
+    #bestChoiceTitle, #bestChoiceSub, #hkWinnerText, #zhuhaiSaveText, #hks_disc, #cal_disc, #zhs_disc {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
+    }
+    /* 每欄頂部顏色識別條 */
+    #card-hkshell { border-top: 3px solid #facc15; }
+    #card-caltex  { border-top: 3px solid #ef4444; }
+    #card-zhshell { border-top: 3px solid #10b981; }
+    /* 最小的說明字級由 10px 提到 11px，並提高對比 */
+    .text-\[10px\] { font-size: 11px !important; line-height: 1.5; }
+    .text-slate-500 { color: #94a3b8 !important; }
+    /* 進階設定收合：預設只顯示必要欄位，減少視覺雜訊 */
+    details.adv > summary {
+      cursor: pointer; color: #7dd3fc; font-size: 11px; font-weight: 600;
+      padding: 4px 0; min-height: 32px; display: flex; align-items: center; gap: 6px;
+      list-style: none;
+    }
+    details.adv > summary::-webkit-details-marker { display: none; }
+    details.adv > summary::before { content: "▸"; font-size: 10px; }
+    details.adv[open] > summary::before { content: "▾"; }
+    details.adv[open] > summary { margin-bottom: 4px; }
+    details.adv { border-top: 1px dashed #334155; margin-top: 10px; padding-top: 2px; }
 
     /* ===== 手機觸控與縮放修正 ===== */
     html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -137,9 +165,9 @@
     <!-- Top Winner Banner -->
     <div class="my-5 p-4 rounded-xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-900 border border-emerald-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
       <div>
-        <div class="text-xs font-bold uppercase tracking-wider text-emerald-400">當前設定最抵入油方案</div>
-        <div id="bestChoiceTitle" class="text-lg md:text-xl font-extrabold text-white mt-0.5">-</div>
-        <div id="bestChoiceSub" class="text-xs md:text-sm text-slate-300 mt-0.5">-</div>
+        <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">當前設定最抵入油方案</div>
+        <div id="bestChoiceTitle" class="text-xl md:text-2xl font-black text-white mt-1 leading-tight">-</div>
+        <div id="bestChoiceSub" class="text-xs md:text-sm text-slate-300 mt-1 leading-relaxed">-</div>
       </div>
       <div class="flex gap-5 self-end md:self-center text-right">
         <div>
@@ -154,7 +182,7 @@
     </div>
 
     <!-- Main 3 Columns -->
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
 
       <!-- COLUMN 1: HK SHELL (Integrated with GO+ Targeted Offers) -->
       <div id="card-hkshell" class="card-bg rounded-2xl p-5 flex flex-col justify-between">
@@ -214,6 +242,8 @@
               <span class="text-slate-300">每升實際扣減額 (HK$/L)</span>
               <input type="number" id="hks_disc" value="14.40" step="0.1" class="w-24 px-2 py-1 rounded text-right font-bold text-emerald-400" oninput="calculateAll()">
             </div>
+            <details class="adv">
+              <summary>進階設定（額外滿額券、信用卡回贈、目標）</summary>
             <div class="flex justify-between items-center">
               <span class="text-slate-300">額外滿額券：滿 HK$ / 減 HK$</span>
               <div class="flex gap-1">
@@ -237,6 +267,7 @@
               </div>
             </div>
             <div id="hks_tgt_hint" class="text-[10px] text-slate-500 text-right leading-relaxed">-</div>
+            </details>
           </div>
         </div>
 
@@ -293,6 +324,8 @@
               <span class="text-slate-300 shrink-0">官方牌價 (HK$/L)</span>
               <input type="number" id="cal_base" value="34.72" step="0.01" class="w-24 px-2 py-1 rounded text-right font-semibold" oninput="calculateAll()">
             </div>
+            <details class="adv">
+              <summary>進階設定（信用卡回贈、目標）</summary>
             <div class="flex justify-between items-center gap-2">
               <span class="text-slate-300 shrink-0">信用卡回贈 (%)</span>
               <input type="number" id="cal_cc" value="0" step="0.5" class="w-24 px-2 py-1 rounded text-right" oninput="saveAndCalc()">
@@ -310,6 +343,7 @@
               </div>
             </div>
             <div id="cal_tgt_hint" class="text-[10px] text-slate-500 text-right leading-relaxed">-</div>
+            </details>
             <div class="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1.5 text-[11px]">
               <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">折扣後單價（牌價 − 卡折扣）</span><span id="cal_after_card" class="font-semibold text-slate-200 text-right">-</span></div>
               <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">達門檻需入</span><span id="cal_liters" class="font-semibold text-slate-200 text-right">-</span></div>
@@ -341,96 +375,7 @@
       </div>
 
 
-      <!-- COLUMN 3: HK SINOPEC -->
-      <div id="card-sinopec" class="card-bg rounded-2xl p-5 flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-7 rounded bg-blue-600"></div>
-              <div>
-                <h2 class="text-base font-bold text-white">香港 SINOPEC 中石化</h2>
-                <p class="text-[11px] text-slate-400">SINO X Power 超級汽油（2026年10月推廣）</p>
-              </div>
-            </div>
-            <span id="badge-sinopec" class="hidden px-2 py-0.5 text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 rounded-full">香港最抵</span>
-          </div>
-
-          <div class="mt-3">
-            <label class="text-[11px] text-slate-400 block mb-1">點選適用日子（每日優惠）：</label>
-            <div class="grid grid-cols-3 gap-1.5">
-              <button type="button" id="btn-sino-mon" onclick="applySinopecDay('mon')" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
-                <div class="font-bold text-slate-200">星期一</div><div class="text-[10px] text-slate-400">1倍 · 減$7.80</div>
-              </button>
-              <button type="button" id="btn-sino-tuefri" onclick="applySinopecDay('tuefri')" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
-                <div class="font-bold text-sky-300">星期二、五</div><div class="text-[10px] text-slate-400">3倍 · 減$12.30</div>
-              </button>
-              <button type="button" id="btn-sino-wed" onclick="applySinopecDay('wed')" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
-                <div class="font-bold text-emerald-300">星期三</div><div class="text-[10px] text-slate-400">5倍 · 減$11.37</div>
-              </button>
-              <button type="button" id="btn-sino-thu" onclick="applySinopecDay('thu')" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
-                <div class="font-bold text-slate-200">星期四</div><div class="text-[10px] text-slate-400">1倍 · 減$7.80</div>
-              </button>
-              <button type="button" id="btn-sino-wknd" onclick="applySinopecDay('wknd')" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
-                <div class="font-bold text-amber-300">星期六、日</div><div class="text-[10px] text-slate-400">5倍 · 減$13.84</div>
-              </button>
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between bg-slate-900/90 px-3 py-2 rounded-lg border border-slate-800 mt-2">
-            <label for="sino_inc_pts" class="flex items-center justify-between gap-2 w-full cursor-pointer py-1">
-              <span class="text-xs text-slate-300">計入積分回贈價值 ("高達"字眼)</span>
-              <input type="checkbox" id="sino_inc_pts" class="w-5 h-5 accent-sky-500" onchange="updateSinopecByDay()">
-            </label>
-          </div>
-
-          <div class="space-y-2.5 mt-3.5 text-xs">
-            <div class="flex justify-between items-center">
-              <span class="text-slate-300">掛牌價 (HK$/L)</span>
-              <input type="number" id="sino_base" value="36.32" step="0.01" class="w-24 px-2 py-1 rounded text-right font-semibold" oninput="calculateAll()">
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-slate-300">每升立減 (HK$/L)</span>
-              <input type="number" id="sino_disc" value="11.37" step="0.01" class="w-24 px-2 py-1 rounded text-right font-bold text-emerald-400" oninput="calculateAll()">
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-slate-300">信用卡回贈 (%)</span>
-              <input type="number" id="sino_cc" value="0" step="0.5" class="w-24 px-2 py-1 rounded text-right" oninput="saveAndCalc()">
-            </div>
-            <div class="flex justify-between items-center gap-2">
-              <span class="text-slate-300 shrink-0">目標</span>
-              <div class="flex items-center gap-1">
-                <select id="sino_tgt_mode" class="text-[11px] px-1.5 py-1 rounded" onchange="applyTarget('sinopec')">
-                  <option value="liters">按升數（上方）</option>
-                  <option value="gross">按油錶價 (HK$)</option>
-                  <option value="net">按折實價 (HK$)</option>
-                </select>
-                <input type="number" id="sino_tgt_val" value="1000" step="50" class="w-20 px-1.5 py-1 rounded text-right" oninput="applyTarget('sinopec')">
-              </div>
-            </div>
-            <div id="sino_tgt_hint" class="text-[10px] text-slate-500 text-right leading-relaxed">-</div>
-          </div>
-        </div>
-
-        <div class="mt-5 pt-3.5 border-t border-slate-800">
-          <div class="flex justify-between items-baseline">
-            <span class="text-xs text-slate-400">每升實付淨價</span>
-            <div class="text-2xl font-extrabold text-white" id="sino_net_per_l">-</div>
-          </div>
-          <div class="flex justify-between items-baseline mt-1.5">
-            <span class="text-xs text-slate-400">本次入油實付總額</span>
-            <div class="text-lg font-bold text-sky-400" id="sino_total">-</div>
-          </div>
-          <div class="flex justify-between items-center mt-1 text-[11px] text-slate-400">
-            <span>總折扣率：<strong id="sino_pct" class="text-emerald-400">-</strong></span>
-            <span id="sino_saved">-</span>
-          </div>
-          <div class="text-[10px] text-slate-500 leading-relaxed mt-2">
-            優惠期 2026-10-01～31；滿 25L 送 -$11.8/L 券、IG 搶券 -$12.8/L 需另於 5 倍積分日使用，未計入本表。每月 22 號為 MAX POWER DAY。價格以中石化官方為準。
-          </div>
-        </div>
-      </div>
-
-      <!-- COLUMN 4: ZHUHAI SHELL -->
+      <!-- COLUMN 3: ZHUHAI SHELL -->
       <div id="card-zhshell" class="card-bg rounded-2xl p-5 flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -478,6 +423,8 @@
               <span class="text-slate-300 shrink-0">每升立減 (¥/L)</span>
               <input type="number" id="zhs_disc" value="0.98" step="0.01" class="w-24 px-2 py-1 rounded text-right font-bold text-emerald-400" oninput="calculateAll()">
             </div>
+            <details class="adv">
+              <summary>進階設定（優惠規則金額）</summary>
             <div class="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-2">
               <div class="text-[11px] text-slate-400">日期優惠規則（不疊加，取較大）</div>
               <div class="flex justify-between items-center gap-2">
@@ -489,6 +436,7 @@
                 <input type="number" id="zhs_rule_dw" value="0.98" step="0.05" class="w-20 px-2 py-1 rounded text-right text-sky-300" oninput="applyZhuhaiRules()">
               </div>
             </div>
+            </details>
             <div class="flex justify-between items-center gap-2">
               <label class="flex items-center gap-2 text-slate-300 cursor-pointer">
                 <input type="checkbox" id="zhs_toll_on" checked class="accent-emerald-500" onchange="calculateAll()">
@@ -526,17 +474,6 @@
     let currentShellFuel = 'vpower'; // 'vpower' or 'fuelsave'
     let currentShellDay = 'wed';     // 'wed', 'wknd', 'wkdy'
     let caltexPetrol = 'standard';   // 'standard' (黃金) or 'premium' (白金)
-
-    // ===== 中石化 SINO X Power 超級汽油（2026年10月推廣）=====
-    // cash = 收銀機即場現金直減；max = 連積分回贈價值（"高達"）
-    const SINOPEC_OFFERS = {
-      mon:    { cash: 7.80,  max: 8.19 },
-      tuefri: { cash: 12.30, max: 13.30 },
-      wed:    { cash: 11.37, max: 13.10 },
-      thu:    { cash: 7.80,  max: 8.19 },
-      wknd:   { cash: 13.84, max: 15.40 },
-    };
-    let currentSinoDay = 'wed';
 
     // Shell 牌價（可由 hk-petrol-price-crawler 抓取更新）
     let SHELL_PRICES = { vpower: 36.32, fuelsave: 34.52 };
@@ -589,22 +526,11 @@
 
     function setLiters(val) { document.getElementById('fuelLiters').value = val; calculateAll(); }
 
-    // ---------- Sinopec ----------
-    function applySinopecDay(day) {
-      currentSinoDay = day;
-      Object.keys(SINOPEC_OFFERS).forEach(k => {
-        const el = document.getElementById('btn-sino-' + k);
-        if (!el) return;
-        if (k === day) el.classList.add('ring-2', 'ring-sky-400', 'bg-slate-700');
-        else el.classList.remove('ring-2', 'ring-sky-400', 'bg-slate-700');
-      });
-      updateSinopecByDay();
-    }
-    function updateSinopecByDay() {
-      const inc = document.getElementById('sino_inc_pts').checked;
-      const offer = SINOPEC_OFFERS[currentSinoDay];
-      document.getElementById('sino_disc').value = (inc ? offer.max : offer.cash).toFixed(2);
-      calculateAll();
+    // 金額格式化：加入千分位，讓大額數字一眼可讀（例：1,252.41）
+    function money(v) {
+      const n = Number(v);
+      if (!isFinite(n)) return '-';
+      return n.toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     // 目標換算後寫回共用升數（依輸入框上限夾限）
@@ -616,13 +542,13 @@
     }
 
     // 目標金額／券數 → 換算為共用升數（讓三欄維持同一升數比較）
-    // 各欄目標控制的元素對應（shell / caltex / sinopec）
+    // 各欄目標控制的元素對應（shell / caltex）
     function targetIds(kind) {
-      const base = { shell: 'hks', caltex: 'cal', sinopec: 'sino' }[kind];
+      const base = { shell: 'hks', caltex: 'cal' }[kind];
       return {
         mode: base + '_tgt_mode',
         val: base + '_tgt_val',
-        price: (kind === 'shell' ? 'hks_base' : kind === 'caltex' ? 'cal_base' : 'sino_base'),
+        price: (kind === 'shell' ? 'hks_base' : 'cal_base'),
         net: base + '_net_per_l',
         hint: base + '_tgt_hint',
       };
@@ -798,7 +724,6 @@
         localStorage.setItem('hkzh_fx', document.getElementById('exchangeRate').value);
         localStorage.setItem('hkzh_hks_cc', document.getElementById('hks_cc').value);
         localStorage.setItem('hkzh_cal_cc', document.getElementById('cal_cc').value);
-        localStorage.setItem('hkzh_sino_cc', document.getElementById('sino_cc').value);
         localStorage.setItem('hkzh_zhs_base98', document.getElementById('zhs_base').value);
       } catch (e) {}
       calculateAll();
@@ -822,8 +747,8 @@
       const hksNetL = hksFinal / liters;
       const hksPct = hksGross > 0 ? ((hksGross - hksFinal) / hksGross * 100) : 0;
 
-      document.getElementById('hks_net_per_l').innerHTML = `HK$ ${hksNetL.toFixed(2)} <span class="text-xs font-normal text-slate-400">/L</span>`;
-      document.getElementById('hks_total').innerText = `HK$ ${hksFinal.toFixed(2)}`;
+      document.getElementById('hks_net_per_l').innerHTML = `HK$ ${money(hksNetL)} <span class="text-xs font-normal text-slate-400">/L</span>`;
+      document.getElementById('hks_total').innerText = `HK$ ${money(hksFinal)}`;
       document.getElementById('hks_pct').innerText = `${hksPct.toFixed(1)}% OFF`;
       document.getElementById('hks_saved').innerText = `共慳 HK$ ${(hksGross - hksFinal).toFixed(1)}`;
 
@@ -865,8 +790,8 @@
         ['cal_after_card', 'cal_liters', 'cal_free_liters', 'cal_per_coupon', 'cal_split', 'cal_equiv'].forEach(id => document.getElementById(id).textContent = '-');
       }
       const calPct = calGross > 0 ? ((calGross - calFinal) / calGross * 100) : 0;
-      document.getElementById('cal_net_per_l').innerHTML = `HK$ ${calNetL.toFixed(2)} <span class="text-xs font-normal text-slate-400">/L</span>`;
-      document.getElementById('cal_total').innerText = `HK$ ${calFinal.toFixed(2)}`;
+      document.getElementById('cal_net_per_l').innerHTML = `HK$ ${money(calNetL)} <span class="text-xs font-normal text-slate-400">/L</span>`;
+      document.getElementById('cal_total').innerText = `HK$ ${money(calFinal)}`;
       document.getElementById('cal_pct').innerText = `${calPct.toFixed(1)}% OFF`;
       document.getElementById('cal_saved').innerText = `共慳 HK$ ${(calGross - calFinal).toFixed(1)}`;
 
@@ -883,22 +808,7 @@
         `升數 ${liters.toFixed(2)}L ｜ 油錶價 HK$${(calBase * liters).toFixed(0)} ｜ 折實價 HK$${calFinal.toFixed(0)}` +
         (splitN ? ` ｜ ${splitN} 張券` : '');
 
-      // 3. HK Sinopec（SINO X Power 超級汽油）
-      const sinoBase = Math.max(0, parseFloat(document.getElementById('sino_base').value) || 0);
-      const sinoDisc = Math.max(0, parseFloat(document.getElementById('sino_disc').value) || 0);
-      const sinoCC = Math.min(100, Math.max(0, parseFloat(document.getElementById('sino_cc').value) || 0));
-      const sinoGross = sinoBase * liters;
-      const sinoFinal = Math.max(0, (sinoBase - sinoDisc) * liters * (1 - sinoCC / 100));
-      const sinoNetL = liters > 0 ? sinoFinal / liters : 0;
-      const sinoPct = sinoGross > 0 ? ((sinoGross - sinoFinal) / sinoGross * 100) : 0;
-      document.getElementById('sino_net_per_l').innerHTML = `HK$ ${sinoNetL.toFixed(2)} <span class="text-xs font-normal text-slate-400">/L</span>`;
-      document.getElementById('sino_total').innerText = `HK$ ${sinoFinal.toFixed(2)}`;
-      document.getElementById('sino_pct').innerText = `${sinoPct.toFixed(1)}% OFF`;
-      document.getElementById('sino_saved').innerText = `共慳 HK$ ${(sinoGross - sinoFinal).toFixed(1)}`;
-      document.getElementById('sino_tgt_hint').textContent =
-        `升數 ${liters.toFixed(2)}L ｜ 油錶價 HK$${(sinoBase * liters).toFixed(0)} ｜ 折實價 HK$${sinoFinal.toFixed(0)}`;
-
-      // 4. Zhuhai Shell
+      // 3. Zhuhai Shell
       const zhsBase = Math.max(0, parseFloat(document.getElementById('zhs_base').value) || 0);
       const zhsDisc = Math.max(0, parseFloat(document.getElementById('zhs_disc').value) || 0);
       // 過境路費：tick box 控制有／沒有；¥142.5 × 2（來回）再依匯率換算
@@ -915,15 +825,14 @@
       const zhsNetLHKD = zhsFinalHKD / liters;
       const zhsFold = hksBase > 0 ? (zhsNetLHKD / hksBase * 10) : 0;
 
-      document.getElementById('zhs_net_per_l').innerHTML = `HK$ ${zhsNetLHKD.toFixed(2)} <span class="text-xs font-normal text-slate-400">/L</span>`;
-      document.getElementById('zhs_total').innerHTML = `HK$ ${zhsFinalHKD.toFixed(2)} <span class="text-xs text-amber-300 font-normal">(¥${zhsFinalRMB.toFixed(2)})</span>`;
+      document.getElementById('zhs_net_per_l').innerHTML = `HK$ ${money(zhsNetLHKD)} <span class="text-xs font-normal text-slate-400">/L</span>`;
+      document.getElementById('zhs_total').innerHTML = `HK$ ${money(zhsFinalHKD)} <span class="text-xs text-amber-300 font-normal">(¥${zhsFinalRMB.toFixed(2)})</span>`;
       document.getElementById('zhs_vs_hk_pct').innerText = `${zhsFold.toFixed(1)} 折`;
 
-      // Winner：香港三選一（Shell／Caltex／中石化），再與珠海比較
+      // Winner：香港兩選一（Shell／Caltex），再與珠海比較
       const hkOptions = [
         { name: '香港 Shell', final: hksFinal, card: 'card-hkshell', badge: 'badge-hkshell' },
         { name: '香港 Caltex', final: calFinal, card: 'card-caltex', badge: 'badge-caltex' },
-        { name: '香港 中石化', final: sinoFinal, card: 'card-sinopec', badge: 'badge-sinopec' },
       ];
       const bestHK = hkOptions.reduce((a, b) => (b.final < a.final ? b : a));
       const bestHKFinal = bestHK.final;
@@ -956,12 +865,15 @@
       const zhSave = bestHKFinal - zhsFinalHKD;
       document.getElementById('zhuhaiSaveText').innerText = zhSave > 0 ? `再慳 HK$${zhSave.toFixed(0)}` : `計路費後香港較平`;
 
-      ['card-hkshell', 'card-caltex', 'card-sinopec', 'card-zhshell'].forEach(id => document.getElementById(id).classList.remove('winner-card'));
+      ['card-hkshell', 'card-caltex', 'card-zhshell'].forEach(id => document.getElementById(id).classList.remove('winner-card'));
       if (zhsFinalHKD <= bestHKFinal) document.getElementById('card-zhshell').classList.add('winner-card');
       else document.getElementById(bestHK.card).classList.add('winner-card');
 
-      document.getElementById('bestChoiceTitle').innerText = `${bestHKName} 折後 HK$ ${(bestHKFinal / liters).toFixed(2)}/L ｜ 珠海 Shell 折合 HK$ ${zhsNetLHKD.toFixed(2)}/L`;
-      document.getElementById('bestChoiceSub').innerText = `在香港入 ${liters}L 選「${bestHKName}」可比對手平 HK$ ${hkDiff.toFixed(1)}；若順路北上珠海入油可比香港最抵方案再省 HK$ ${Math.max(0, zhSave).toFixed(1)}。`;
+      document.getElementById('bestChoiceTitle').innerText =
+        `${bestHKName.replace('香港 ', '香港')}　HK$ ${money(bestHKFinal / liters)} /L`;
+      document.getElementById('bestChoiceSub').innerText =
+        `入 ${liters.toFixed(2)}L：${bestHKName} 比次選平 HK$ ${hkDiff.toFixed(1)}；` +
+        `珠海 Shell 折合 HK$ ${money(zhsNetLHKD)}/L（${zhsTollOn ? '含' : '未含'}路費）`;
     }
 
     // ===== 自動抓價 =====
@@ -1233,7 +1145,6 @@
         if (localStorage.getItem('hkzh_fx')) document.getElementById('exchangeRate').value = localStorage.getItem('hkzh_fx');
         if (localStorage.getItem('hkzh_hks_cc')) document.getElementById('hks_cc').value = localStorage.getItem('hkzh_hks_cc');
         if (localStorage.getItem('hkzh_cal_cc')) document.getElementById('cal_cc').value = localStorage.getItem('hkzh_cal_cc');
-        if (localStorage.getItem('hkzh_sino_cc')) document.getElementById('sino_cc').value = localStorage.getItem('hkzh_sino_cc');
         if (localStorage.getItem('hkzh_zhs_base98')) document.getElementById('zhs_base').value = localStorage.getItem('hkzh_zhs_base98');
       } catch (e) {}
 
@@ -1256,10 +1167,6 @@
       if (d === 3) applyShellGoPlus('wed');
       else if (d === 0 || d === 6) applyShellGoPlus('wknd');
       else applyShellGoPlus('wkdy');
-
-      // 中石化：依今日星期自動選取每日優惠（0=日 1=一 … 6=六）
-      const sinoDayByWeekday = { 0: 'wknd', 1: 'mon', 2: 'tuefri', 3: 'wed', 4: 'thu', 5: 'tuefri', 6: 'wknd' };
-      applySinopecDay(sinoDayByWeekday[d] || 'wed');
 
       calculateAll();
       fetchHkPrices();
