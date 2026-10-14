@@ -216,6 +216,18 @@
               <span class="text-slate-300">信用卡回贈 (%)</span>
               <input type="number" id="hks_cc" value="0" step="0.5" class="w-24 px-2 py-1 rounded text-right" oninput="saveAndCalc()">
             </div>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">目標</span>
+              <div class="flex items-center gap-1">
+                <select id="hks_tgt_mode" class="text-[11px] px-1.5 py-1 rounded" onchange="applyTarget('shell')">
+                  <option value="liters">按升數（上方）</option>
+                  <option value="gross">按油錶價 (HK$)</option>
+                  <option value="net">按折實價 (HK$)</option>
+                </select>
+                <input type="number" id="hks_tgt_val" value="1000" step="50" class="w-20 px-1.5 py-1 rounded text-right" oninput="applyTarget('shell')">
+              </div>
+            </div>
+            <div id="hks_tgt_hint" class="text-[10px] text-slate-500 text-right leading-relaxed">-</div>
           </div>
         </div>
 
@@ -276,6 +288,19 @@
               <span class="text-slate-300 shrink-0">信用卡回贈 (%)</span>
               <input type="number" id="cal_cc" value="0" step="0.5" class="w-24 px-2 py-1 rounded text-right" oninput="saveAndCalc()">
             </div>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-300 shrink-0">目標</span>
+              <div class="flex items-center gap-1">
+                <select id="cal_tgt_mode" class="text-[11px] px-1.5 py-1 rounded" onchange="applyTarget('caltex')">
+                  <option value="liters">按升數（上方）</option>
+                  <option value="gross">按油錶價 (HK$)</option>
+                  <option value="net">按折實價 (HK$)</option>
+                  <option value="coupons">按優惠券張數</option>
+                </select>
+                <input type="number" id="cal_tgt_val" value="3" step="1" class="w-20 px-1.5 py-1 rounded text-right" oninput="applyTarget('caltex')">
+              </div>
+            </div>
+            <div id="cal_tgt_hint" class="text-[10px] text-slate-500 text-right leading-relaxed">-</div>
             <div class="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1.5 text-[11px]">
               <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">折扣後單價（牌價 − 卡折扣）</span><span id="cal_after_card" class="font-semibold text-slate-200 text-right">-</span></div>
               <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">達門檻需入</span><span id="cal_liters" class="font-semibold text-slate-200 text-right">-</span></div>
@@ -452,6 +477,51 @@
     let caltexManualPrice = false;
 
     function setLiters(val) { document.getElementById('fuelLiters').value = val; calculateAll(); }
+
+    // 目標金額／券數 → 換算為共用升數（讓三欄維持同一升數比較）
+    function perLiterOf(kind, mode) {
+      if (mode === 'gross') {
+        return kind === 'shell'
+          ? (parseFloat(document.getElementById('hks_base').value) || 0)
+          : (parseFloat(document.getElementById('cal_base').value) || 0);
+      }
+      const el = document.getElementById(kind === 'shell' ? 'hks_net_per_l' : 'cal_net_per_l');
+      const m = String(el.innerText || el.textContent || '').match(/[0-9]+(?:\.[0-9]+)?/);
+      return m ? parseFloat(m[0]) : 0;
+    }
+
+    function applyTarget(kind) {
+      const isShell = (kind === 'shell');
+      const mode = document.getElementById(isShell ? 'hks_tgt_mode' : 'cal_tgt_mode').value;
+      if (mode === 'liters') { calculateAll(); return; }
+
+      // 按優惠券張數（僅加德士）
+      if (mode === 'coupons') {
+        const listPrice = parseFloat(document.getElementById('cal_base').value) || 0;
+        const coupon = currentCaltexCoupon();
+        const n = Math.max(1, Math.round(parseFloat(document.getElementById('cal_tgt_val').value) || 0));
+        if (listPrice > 0 && coupon.spend > 0) {
+          document.getElementById('fuelLiters').value = (n * (coupon.spend / listPrice)).toFixed(2);
+        }
+        calculateAll();
+        return;
+      }
+
+      const target = parseFloat(document.getElementById(isShell ? 'hks_tgt_val' : 'cal_tgt_val').value) || 0;
+      if (target <= 0) { calculateAll(); return; }
+
+      // 迭代收斂（滿額券／信用卡回贈會令每升實付隨升數微調）
+      let liters = Math.max(parseFloat(document.getElementById('fuelLiters').value) || 1, 0.2);
+      for (let i = 0; i < 6; i++) {
+        document.getElementById('fuelLiters').value = liters;
+        calculateAll();
+        const perL = perLiterOf(kind, mode);
+        if (!perL) break;
+        liters = target / perL;
+      }
+      document.getElementById('fuelLiters').value = Math.max(liters, 0.1).toFixed(2);
+      calculateAll();
+    }
 
     // ---------- Shell ----------
     function setShellFuel(type) {
@@ -633,6 +703,14 @@
       document.getElementById('cal_total').innerText = `HK$ ${calFinal.toFixed(2)}`;
       document.getElementById('cal_pct').innerText = `${calPct.toFixed(1)}% OFF`;
       document.getElementById('cal_saved').innerText = `共慳 HK$ ${(calGross - calFinal).toFixed(1)}`;
+
+      // 目標提示（升數／油錶價／折實價／券數）
+      const splitN = calRes ? Math.ceil(liters / calRes.totalLiters) : 0;
+      document.getElementById('hks_tgt_hint').textContent =
+        `升數 ${liters.toFixed(2)}L ｜ 油錶價 HK$${(hksBase * liters).toFixed(0)} ｜ 折實價 HK$${hksFinal.toFixed(0)}`;
+      document.getElementById('cal_tgt_hint').textContent =
+        `升數 ${liters.toFixed(2)}L ｜ 油錶價 HK$${(calBase * liters).toFixed(0)} ｜ 折實價 HK$${calFinal.toFixed(0)}` +
+        (splitN ? ` ｜ ${splitN} 張券` : '');
 
       // 3. Zhuhai Shell
       const zhsBase = parseFloat(document.getElementById('zhs_base').value) || 0;
@@ -963,6 +1041,12 @@
 
       // 預設內地來源免憑證（汽油价格网）→ 開頁自動抓取珠海油價
       if (document.getElementById('cn_source').value === 'qiyoujiage') fetchCnPrice();
+
+      // 手動改升數時，目標模式回到「按升數」
+      document.getElementById('fuelLiters').addEventListener('input', () => {
+        document.getElementById('hks_tgt_mode').value = 'liters';
+        document.getElementById('cal_tgt_mode').value = 'liters';
+      });
     };
   </script>
 </body>
