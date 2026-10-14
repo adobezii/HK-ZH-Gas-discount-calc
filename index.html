@@ -1114,7 +1114,7 @@
         if (!shellManualPrice) document.getElementById('hks_base').value = SHELL_PRICES[currentShellFuel].toFixed(2);
         buildCaltexSelects();
         renderShellLabels();
-        status('hk_status', `已更新：Caltex 黃金 $${caltexPrices.standard.toFixed(2)}／白金 $${caltexPrices.premium.toFixed(2)}；Shell V-Power $${SHELL_PRICES.vpower.toFixed(2)}／FuelSave $${SHELL_PRICES.fuelsave.toFixed(2)}${shellNote}`, shellNote ? 'err' : 'ok');
+        status('hk_status', `已更新：Caltex 黃金 $${caltexPrices.standard.toFixed(2)}／白金 $${caltexPrices.premium.toFixed(2)}；Shell V-Power $${SHELL_PRICES.vpower.toFixed(2)}／FuelSave $${SHELL_PRICES.fuelsave.toFixed(2)}${shellNote}`, shellNote ? 'load' : 'ok');
       } catch (e) {
         // 備援：直接讀取消委會「油價資訊通」官方 JSON（需經 CORS 代理，可能失效）
         try {
