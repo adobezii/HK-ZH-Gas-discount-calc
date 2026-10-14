@@ -567,13 +567,17 @@ async function fetchCnPrice() {
   compute();
 }
 
-// 解析接口盒子「全國油價查詢」回應（data1/data2/... 的第一個非 null 98）
+// 解析接口盒子「全國油價查詢」回應
+// 官方結構：{code:200, sheng, date, data:{data1:{98:..}, data2:{..}}}（多價區在 data2）
+// 亦兼容頂層 data1/data2；依序取第一個非 null 的 98
 function parseApihz(payload) {
   if (!payload || typeof payload !== "object") throw new Error("回應格式非預期");
   if (payload.code !== 200 && payload.code !== "200") throw new Error(payload.msg || ("code=" + payload.code));
-  const zones = Object.keys(payload).filter(k => k.toLowerCase().startsWith("data")).sort();
-  for (const z of zones) {
-    const zone = payload[z];
+  const root = (payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)) ? payload.data : payload;
+  const zones = Object.keys(root).filter(k => /^data\d*$/i.test(k)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const candidates = zones.map(z => root[z]);
+  if (root["98"] !== undefined) candidates.push(root);
+  for (const zone of candidates) {
     if (zone && typeof zone === "object") {
       const v = zone["98"];
       if (v !== null && v !== undefined && v !== "" && v !== "null") {
@@ -582,7 +586,9 @@ function parseApihz(payload) {
       }
     }
   }
-  throw new Error("找不到 98# 價格欄位");
+  const found = extract98(root);
+  if (found != null && found > 0) return found;
+  throw new Error("找不到 98# 價格欄位（價區：" + (zones.join(", ") || "無") + "）");
 }
 
 // 依內地油價來源切換欄位標籤與 ID 欄位顯示

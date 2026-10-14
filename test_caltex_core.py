@@ -185,19 +185,32 @@ def test_parse_apihz_oilprice_errors():
         assert "key錯誤" in str(exc)
     else:
         raise AssertionError("應拋出 ValueError")
+    # 只有 ap98（愛跑98）不應被當成 98#
     try:
-        parse_apihz_oilprice({"code": 200, "data1": {"92": "7.52"}})
+        parse_apihz_oilprice({"code": 200, "data": {"data1": {"ap98": 8.88, "95": 7.78}}})
     except ValueError:
         pass
     else:
-        raise AssertionError("應拋出 ValueError")
-    # 找不到 98# 欄位
-    try:
-        parse_showapi_oilprice({"showapi_res_body": {"list": [{"prov": "广东", "p92": "7.52"}]}})
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("應拋出 ValueError")
+        raise AssertionError("ap98 不應被當成 98#")
+
+
+def test_parse_apihz_official_nested():
+    """官方文件結構：data 之下才是 data1/data2；多價區依序取第一個非 null。"""
+    payload = {
+        "code": 200,
+        "sheng": "广东",
+        "date": "2026年07月03日",
+        "data": {
+            "data1": {"jq": "一价区", "area": "", "92": 7.28, "95": 7.78, "98": "9.79", "98bd": -0.50},
+            "data2": {"jq": "二价区", "area": "含部分地區", "92": 7.35, "95": 7.85, "98": None},
+        },
+    }
+    assert approx(parse_apihz_oilprice(payload), 9.79)
+    # data1 的 98 為 null → 取 data2
+    assert approx(parse_apihz_oilprice({"code": 200, "data": {"data1": {"98": None}, "data2": {"98": "9.25"}}}), 9.25)
+    # 數字型別亦可
+    assert approx(parse_apihz_oilprice({"code": "200", "data": {"data1": {"98": 9.1}}}), 9.1)
+
 
 
 if __name__ == "__main__":

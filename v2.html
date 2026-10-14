@@ -704,18 +704,26 @@
       for (const it of items) { const p = extract98(it); if (p != null && p > 0) return p; }
       throw new Error('找不到 98# 價格欄位');
     }
+    // 接口盒子「全國油價」：官方結構為 {code:200, sheng, date, data:{data1:{98:..}, data2:{..}}}
+    // （多價區省份如四川在 data2），亦兼容頂層 data1/data2；依序取第一個非 null 的 98。
     function parseApihz(payload) {
       if (!payload || typeof payload !== 'object') throw new Error('回應格式非預期');
       if (payload.code !== 200 && payload.code !== '200') throw new Error(payload.msg || ('code=' + payload.code));
-      const zones = Object.keys(payload).filter(k => k.toLowerCase().startsWith('data')).sort();
-      for (const z of zones) {
-        const zone = payload[z];
+      const root = (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) ? payload.data : payload;
+      const zones = Object.keys(root)
+        .filter(k => /^data\d*$/i.test(k))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      const candidates = zones.map(z => root[z]);
+      if (root['98'] !== undefined) candidates.push(root);
+      for (const zone of candidates) {
         if (zone && typeof zone === 'object') {
           const v = zone['98'];
           if (v !== null && v !== undefined && v !== '' && v !== 'null') { const n = parseFloat(v); if (!isNaN(n)) return n; }
         }
       }
-      throw new Error('找不到 98# 價格欄位');
+      const found = extract98(root);
+      if (found != null && found > 0) return found;
+      throw new Error('找不到 98# 價格欄位（價區：' + (zones.join(', ') || '無') + '）');
     }
     // RollToolsApi（mxnzp.com）：{code:1, data:{t98:"9.79"}}
     function parseMxnzp(payload) {
@@ -823,9 +831,12 @@
       status('cn_status', '載入中…', 'load');
       try {
         let price;
+        let extra = '';
         if (src === 'apihz') {
           const q = new URLSearchParams({ id: id, key: key, sheng: prov });
-          price = parseApihz(await (await fetch(CN_APIS.apihz + '?' + q.toString())).json());
+          const j = await (await fetch(CN_APIS.apihz + '?' + q.toString())).json();
+          price = parseApihz(j);
+          if (j && j.date) extra = `（調價日 ${j.date}）`;
         } else if (src === 'mxnzp') {
           const q = new URLSearchParams({ province: prov, app_id: id, app_secret: key });
           price = parseMxnzp(await (await fetch(CN_APIS.mxnzp + '?' + q.toString())).json());
@@ -840,7 +851,7 @@
         }
         document.getElementById('zhs_base').value = price;
         const srcName = { apihz: '接口盒子', mxnzp: 'RollToolsApi', showapi: 'ShowAPI', istero: '起零數據' }[src];
-        status('cn_status', `已更新：${prov} 98# ¥${price}/L（${srcName}）`, 'ok');
+        status('cn_status', `已更新：${prov} 98# ¥${price}/L（${srcName}）${extra}`, 'ok');
       } catch (e) {
         status('cn_status', '抓取失敗（' + (e && e.message ? e.message : 'CORS 或網絡') + '），請手動輸入', 'err');
       }

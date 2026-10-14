@@ -372,10 +372,12 @@ def fetch_cn_98_price_showapi(appcode, prov="广东", timeout=8.0):
 def parse_apihz_oilprice(payload, petrol="98"):
     """解析接口盒子「全國油價查詢」回應，取出指定油品價格（元/升）。
 
-    回應結構：{code:200, sheng, date, data1:{92,95,98,...}, data2:{...}, ...}
-    多價區時依序取第一個非 null 的欄位值。解析失敗時拋 ValueError。
+    官方結構：{code:200, sheng, date, data:{data1:{92,95,98,...}, data2:{...}}}
+    （多價區省份如四川在 data2），亦兼容頂層 data1/data2 的舊式結構；
+    依序取第一個非 null 的欄位值。解析失敗時拋 ValueError。
     """
     import json
+    import re
 
     if isinstance(payload, (bytes, bytearray)):
         payload = payload.decode("utf-8", "ignore")
@@ -388,9 +390,17 @@ def parse_apihz_oilprice(payload, petrol="98"):
     if code not in (200, "200"):
         raise ValueError("接口盒子回報錯誤：" + str(payload.get("msg") or code))
 
-    zones = sorted(str(k) for k in payload if str(k).lower().startswith("data"))
-    for zone_key in zones:
-        zone = payload.get(zone_key)
+    def zone_no(key):
+        matched = re.match(r"^data(\d*)$", str(key), re.I)
+        return int(matched.group(1) or 0) if matched else None
+
+    root = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    zones = sorted((k for k in root if zone_no(k) is not None), key=zone_no)
+    candidates = [root[k] for k in zones]
+    if petrol in root:
+        candidates.append(root)
+
+    for zone in candidates:
         if isinstance(zone, dict):
             val = zone.get(petrol)
             if val not in (None, "", "null"):
@@ -398,7 +408,34 @@ def parse_apihz_oilprice(payload, petrol="98"):
                     return float(val)
                 except (TypeError, ValueError):
                     pass
-    raise ValueError(f"找不到 {petrol}# 價格欄位（價區：{', '.join(zones) or '無'}）")
+
+    found = _extract_key_price(root, petrol)
+    if found is not None and found > 0:
+        return found
+    raise ValueError(f"找不到 {petrol}# 價格欄位（價區：{', '.join(str(z) for z in zones) or '無'}）")
+
+
+def _extract_key_price(obj, key):
+    """遞迴尋找第一個鍵名完全等於 key 的數值（解析器最終保險）。"""
+    if isinstance(obj, list):
+        for item in obj:
+            got = _extract_key_price(item, key)
+            if got is not None:
+                return got
+        return None
+    if not isinstance(obj, dict):
+        return None
+    if key in obj:
+        try:
+            return float(obj[key])
+        except (TypeError, ValueError):
+            pass
+    for value in obj.values():
+        if isinstance(value, (dict, list)):
+            got = _extract_key_price(value, key)
+            if got is not None:
+                return got
+    return None
 
 
 def fetch_cn_98_price_apihz(dev_id, dev_key, sheng="广东", petrol="98", timeout=8.0):
