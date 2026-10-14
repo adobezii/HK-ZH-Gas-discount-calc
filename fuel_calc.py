@@ -54,18 +54,8 @@ fuel_volume = st.sidebar.slider("加油容量 (L)", 30.0, 85.0, 72.67, 0.5)
 trip_mode = st.sidebar.radio("行程模式", ["專程北上（含橋費）", "順路北上（零橋費）"], index=0)
 toll = bridge_toll if trip_mode.startswith("專程") else 0.0
 
-st.sidebar.subheader("🇨🇳 內地油價（延長殼牌 98#）")
-mainland_base_price = st.sidebar.number_input("原價 (¥/L)", value=11.74, step=0.05)
-disc_8th = st.sidebar.number_input("8 號立減 (¥/L)", value=2.18, step=0.05)
-disc_wed = st.sidebar.number_input("週三/六立減 (¥/L)", value=1.28, step=0.05)
-auto_disc = date_discount(day_of_month, weekday, disc_8th, disc_wed)
-mainland_discount = st.sidebar.number_input(
-    f"每升立減 (¥/L) — {auto_disc['label']}",
-    value=float(auto_disc["discount"]),
-    step=0.05,
-)
-
-st.sidebar.caption("提示：8 號 / 週三六優惠不疊加，系統自動取較大折扣；金額依當月海報調整。")
+# 抓取控制放在「原價」欄位之前：按鈕在同一次執行中先寫入 session_state，
+# 之後建立的 widget 才會採用新值（否則 Streamlit 不允許改動已建立的 widget）。
 st.sidebar.subheader("🌐 即時抓取（可選）")
 cn_source = st.sidebar.selectbox(
     "內地油價來源",
@@ -73,6 +63,10 @@ cn_source = st.sidebar.selectbox(
 )
 use_apihz = cn_source.startswith("接口盒子")
 use_showapi = cn_source.startswith("ShowAPI")
+
+if "cn_base_price" not in st.session_state:
+    st.session_state.cn_base_price = 11.74
+
 cn_id = st.sidebar.text_input("開發者 ID", help="接口盒子的數字 ID") if use_apihz else ""
 cn_key = st.sidebar.text_input(
     "開發者 KEY" if use_apihz else ("APPCODE" if use_showapi else "起零數據 token"),
@@ -83,16 +77,32 @@ if st.sidebar.button("↻ 抓取內地 98# 牌價"):
     if cn_key and (not use_apihz or cn_id):
         try:
             if use_apihz:
-                mainland_base_price = fetch_cn_98_price_apihz(cn_id, cn_key, sheng="广东")
+                _fetched = fetch_cn_98_price_apihz(cn_id, cn_key, sheng="广东")
             elif use_showapi:
-                mainland_base_price = fetch_cn_98_price_showapi(cn_key, prov="广东")
+                _fetched = fetch_cn_98_price_showapi(cn_key, prov="广东")
             else:
-                mainland_base_price = fetch_cn_98_price(cn_key, province="广东")
-            st.sidebar.success(f"已更新：¥{mainland_base_price:.2f}/L")
+                _fetched = fetch_cn_98_price(cn_key, province="广东")
+            st.session_state.cn_base_price = float(_fetched)
+            st.sidebar.success(f"已更新：¥{float(_fetched):.2f}/L")
         except Exception as exc:
             st.sidebar.error(f"抓取失敗：{exc}")
     else:
         st.sidebar.warning("請先填入 " + ("開發者 ID 與 KEY" if use_apihz else ("APPCODE" if use_showapi else "起零數據 token")) + "。")
+
+mainland_base_price = st.sidebar.number_input("原價 (¥/L)", step=0.05, key="cn_base_price")
+
+st.sidebar.subheader("🇨🇳 內地油價（延長殼牌 98#）")
+disc_8th = st.sidebar.number_input("8 號立減 (¥/L)", value=2.18, step=0.05)
+disc_wed = st.sidebar.number_input("週三/六立減 (¥/L)", value=1.28, step=0.05)
+auto_disc = date_discount(day_of_month, weekday, disc_8th, disc_wed)
+mainland_discount = st.sidebar.number_input(
+    f"每升立減 (¥/L) — {auto_disc['label']}",
+    value=float(auto_disc["discount"]),
+    step=0.05,
+)
+
+st.sidebar.caption("提示：8 號 / 週三六優惠不疊加，系統自動取較大折扣；金額依當月海報調整。")
+
 
 st.sidebar.subheader("🇭🇰 香港油價")
 hk_mode = st.sidebar.radio("香港油價模式", ["加德士券後價（拆單計算）", "手動輸入每升實付"], index=0)
