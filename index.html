@@ -84,11 +84,24 @@
             <option value="showapi">ShowAPI 今日油價（APPCODE）</option>
             <option value="istero">起零數據全國油價（token）</option>
             <option value="mxnzp">RollToolsApi 全國油價（app_id + app_secret）</option>
+            <option value="qiyoujiage">汽油价格网（免憑證，經 r.jina.ai）</option>
           </select>
         </div>
-        <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center justify-between gap-2" id="cn_prov_wrap">
           <span class="text-slate-300 shrink-0">省份（珠海＝广东）</span>
           <input type="text" id="cn_prov" value="广东" class="flex-1 min-w-0 px-2 py-1 rounded text-right">
+        </div>
+        <div class="flex items-center justify-between gap-2" id="cn_city_wrap" style="display:none">
+          <span class="text-slate-300 shrink-0">城市（汽油价格网）</span>
+          <select id="cn_city" class="flex-1 min-w-0 px-2 py-1 rounded">
+            <option value="guangdong/zhuhai.shtml">珠海</option>
+            <option value="guangdong/guangzhou.shtml">廣州</option>
+            <option value="guangdong/shenzhen.shtml">深圳</option>
+            <option value="guangdong/dongguan.shtml">東莞</option>
+            <option value="guangdong/foshan.shtml">佛山</option>
+            <option value="guangdong/zhongshan.shtml">中山</option>
+            <option value="guangdong.shtml">廣東（全省）</option>
+          </select>
         </div>
         <div class="flex items-center justify-between gap-2" id="cn_id_wrap" style="display:none">
           <span class="text-slate-300 shrink-0" id="cn_id_label">開發者 ID</span>
@@ -670,7 +683,11 @@
     function applyCnSource() {
       const src = document.getElementById('cn_source').value;
       const needId = (src === 'apihz' || src === 'mxnzp');
+      const noKey = (src === 'qiyoujiage');
       document.getElementById('cn_id_wrap').style.display = needId ? '' : 'none';
+      document.getElementById('cn_city_wrap').style.display = noKey ? '' : 'none';
+      document.getElementById('cn_prov_wrap').style.display = noKey ? 'none' : '';
+      document.getElementById('cn_key').closest('div').style.display = noKey ? 'none' : '';
       const idLabel = document.getElementById('cn_id_label');
       if (idLabel) idLabel.textContent = src === 'mxnzp' ? 'app_id' : '開發者 ID';
       document.getElementById('cn_key_label').textContent =
@@ -735,6 +752,17 @@
         if (v !== null && v !== undefined && v !== '') { const n = parseFloat(v); if (!isNaN(n)) return n; }
       }
       throw new Error('找不到 98# 價格欄位');
+    }
+    // 汽油价格网（經 r.jina.ai 讀取為純文字）：例「珠海98号汽油 11.35(元)」
+    function parseQiyoujiage(text) {
+      const grab = grade => {
+        const m = String(text).match(new RegExp(grade + "\\s*[#號号]?\\s*汽油\\s*[:：]?\\s*([0-9]+(?:\\.[0-9]+)?)"));
+        return m ? parseFloat(m[1]) : null;
+      };
+      const date = (String(text).match(/(20\d{2}-\d{2}-\d{2})/) || [])[1] || '';
+      const p98 = grab('98');
+      if (p98 == null) throw new Error('找不到 98# 價格欄位');
+      return { p98: p98, p95: grab('95'), p92: grab('92'), date: date };
     }
     // 消委會「油價資訊通」官方 JSON 結構：[{type:{en}, prices:[{vendor:{en}, price}]}]
     function parseConsumerCouncil(data, typeEn, vendorEn) {
@@ -824,7 +852,8 @@
       const id = document.getElementById('cn_id').value.trim();
       const prov = document.getElementById('cn_prov').value.trim() || '广东';
       const needId = (src === 'apihz' || src === 'mxnzp');
-      if (!key || (needId && !id)) {
+      const noKey = (src === 'qiyoujiage');
+      if (!noKey && (!key || (needId && !id))) {
         status('cn_status', '請先填入 ' + (src === 'apihz' ? '開發者 ID 與 KEY' : src === 'mxnzp' ? 'app_id 與 app_secret' : (src === 'showapi' ? 'APPCODE' : '起零數據 token')), 'err');
         return;
       }
@@ -840,6 +869,13 @@
         } else if (src === 'mxnzp') {
           const q = new URLSearchParams({ province: prov, app_id: id, app_secret: key });
           price = parseMxnzp(await (await fetch(CN_APIS.mxnzp + '?' + q.toString())).json());
+        } else if (src === 'qiyoujiage') {
+          const path = document.getElementById('cn_city').value;
+          const res = await fetch('https://r.jina.ai/http://www.qiyoujiage.com/' + path);
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const r = parseQiyoujiage(await res.text());
+          price = r.p98;
+          extra = `（95# ¥${r.p95 != null ? r.p95 : '-'}${r.date ? '，' + r.date : ''}）`;
         } else if (src === 'showapi') {
           const res = await fetch(CN_APIS.showapi + '?prov=' + encodeURIComponent(prov), { headers: { 'Authorization': 'APPCODE ' + key } });
           if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -850,8 +886,9 @@
           price = parseFloat(j.data.p98.price);
         }
         document.getElementById('zhs_base').value = price;
-        const srcName = { apihz: '接口盒子', mxnzp: 'RollToolsApi', showapi: 'ShowAPI', istero: '起零數據' }[src];
-        status('cn_status', `已更新：${prov} 98# ¥${price}/L（${srcName}）${extra}`, 'ok');
+        const srcName = { apihz: '接口盒子', mxnzp: 'RollToolsApi', showapi: 'ShowAPI', istero: '起零數據', qiyoujiage: '汽油价格网' }[src];
+        const place = src === 'qiyoujiage' ? document.getElementById('cn_city').selectedOptions[0].textContent : prov;
+        status('cn_status', `已更新：${place} 98# ¥${price}/L（${srcName}）${extra}`, 'ok');
       } catch (e) {
         status('cn_status', '抓取失敗（' + (e && e.message ? e.message : 'CORS 或網絡') + '），請手動輸入', 'err');
       }
