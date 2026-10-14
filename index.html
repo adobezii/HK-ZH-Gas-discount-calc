@@ -277,17 +277,21 @@
               <input type="number" id="cal_cc" value="0" step="0.5" class="w-24 px-2 py-1 rounded text-right" oninput="saveAndCalc()">
             </div>
             <div class="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1.5 text-[11px]">
-              <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">折扣後單價</span><span id="cal_after_card" class="font-semibold text-slate-200 text-right">-</span></div>
-              <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">每張券需入 / 免費</span><span id="cal_liters" class="font-semibold text-slate-200 text-right">-</span></div>
-              <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">每張券實付</span><span id="cal_per_coupon" class="font-semibold text-emerald-400 text-right">-</span></div>
-              <div class="flex justify-between gap-2"><span class="text-slate-400 shrink-0">本次需拆單</span><span id="cal_split" class="font-semibold text-amber-300 text-right">-</span></div>
+              <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">折扣後單價（牌價 − 卡折扣）</span><span id="cal_after_card" class="font-semibold text-slate-200 text-right">-</span></div>
+              <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">達門檻需入</span><span id="cal_liters" class="font-semibold text-slate-200 text-right">-</span></div>
+              <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">券值之免費升數</span><span id="cal_free_liters" class="font-semibold text-emerald-400 text-right">-</span></div>
+              <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">每張券實付</span><span id="cal_per_coupon" class="font-semibold text-emerald-400 text-right">-</span></div>
+              <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">本次需拆單</span><span id="cal_split" class="font-semibold text-amber-300 text-right">-</span></div>
+              <div class="pt-1.5 mt-0.5 border-t border-slate-800/80 text-[10px] leading-relaxed text-slate-500">
+                門檻 <b class="text-slate-400">$350</b> 以<b class="text-slate-400">牌價</b>計；券值 <b class="text-slate-400">$50</b> 亦按牌價折算免費升數（是折減，非額外送油）。每張券限一次交易。
+              </div>
             </div>
           </div>
         </div>
 
         <div class="mt-5 pt-3.5 border-t border-slate-800">
           <div class="flex justify-between items-baseline">
-            <span class="text-xs text-slate-400">券後每升實付淨價</span>
+        <span class="text-xs text-slate-400">券後每升實付淨價（等效）</span>
             <div class="text-2xl font-extrabold text-white" id="cal_net_per_l">-</div>
           </div>
           <div class="flex justify-between items-baseline mt-1.5">
@@ -615,13 +619,14 @@
         calNetL = calRes.actualPrice;
         calFinal = Math.max(0, calNetL * liters * (1 - calCC / 100));
         document.getElementById('cal_after_card').textContent = `HK$ ${calRes.discountedPrice.toFixed(2)}/L`;
-        document.getElementById('cal_liters').textContent = `${calRes.totalLiters.toFixed(2)} / ${calRes.freeLiters.toFixed(2)} L`;
-        document.getElementById('cal_per_coupon').textContent = `HK$ ${calRes.amountPaid.toFixed(2)}（滿$${calCoupon.spend}減$${calCoupon.discount}）`;
+        document.getElementById('cal_liters').textContent = `${calRes.totalLiters.toFixed(2)} L（滿 $${calCoupon.spend}）`;
+        document.getElementById('cal_free_liters').textContent = `${calRes.freeLiters.toFixed(2)} L（券抵 $${calCoupon.discount}）`;
+        document.getElementById('cal_per_coupon').textContent = `HK$ ${calRes.amountPaid.toFixed(2)}`;
         document.getElementById('cal_split').textContent = `${Math.ceil(liters / calRes.totalLiters)} 張券`;
       } else {
         calNetL = calBase;
         calFinal = Math.max(0, calGross * (1 - calCC / 100));
-        ['cal_after_card', 'cal_liters', 'cal_per_coupon', 'cal_split'].forEach(id => document.getElementById(id).textContent = '-');
+        ['cal_after_card', 'cal_liters', 'cal_free_liters', 'cal_per_coupon', 'cal_split'].forEach(id => document.getElementById(id).textContent = '-');
       }
       const calPct = calGross > 0 ? ((calGross - calFinal) / calGross * 100) : 0;
       document.getElementById('cal_net_per_l').innerHTML = `HK$ ${calNetL.toFixed(2)} <span class="text-xs font-normal text-slate-400">/L</span>`;
