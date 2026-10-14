@@ -330,15 +330,15 @@
           <div class="mt-3">
             <label class="text-[11px] text-slate-400 block mb-1">快速套用：</label>
             <div class="grid grid-cols-3 gap-1.5">
-              <button type="button" onclick="applyZhPreset(9.95, 1.88, 200, 20)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
+              <button type="button" onclick="applyZhPreset(9.95, 1.88)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
                 <div class="font-bold text-amber-300">8／18／28</div>
                 <div class="text-[10px] text-slate-400">98# 減 ¥1.88/L</div>
               </button>
-              <button type="button" onclick="applyZhPreset(9.95, 0.98, 200, 20)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
+              <button type="button" onclick="applyZhPreset(9.95, 0.98)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
                 <div class="font-bold text-sky-300">週三／六</div>
                 <div class="text-[10px] text-slate-400">98# 減 ¥0.98/L</div>
               </button>
-              <button type="button" onclick="applyZhPreset(8.65, 0.40, 0, 0)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
+              <button type="button" onclick="applyZhPreset(8.65, 0.40)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
                 <div class="font-bold text-emerald-300">珠海 95#</div>
                 <div class="text-[10px] text-slate-400">¥8.65 減 ¥0.4/L</div>
               </button>
@@ -363,13 +363,6 @@
               <div class="flex justify-between items-center gap-2">
                 <span class="text-slate-300 shrink-0">逢週三／六 (¥/L)</span>
                 <input type="number" id="zhs_rule_dw" value="0.98" step="0.05" class="w-20 px-2 py-1 rounded text-right text-sky-300" oninput="applyZhuhaiRules()">
-              </div>
-            </div>
-            <div class="flex justify-between items-center gap-2">
-              <span class="text-slate-300 shrink-0">滿額券：滿 ¥ / 減 ¥</span>
-              <div class="flex gap-1">
-                <input type="number" id="zhs_v_min" value="200" class="w-16 px-1.5 py-1 rounded text-right" oninput="calculateAll()">
-                <input type="number" id="zhs_v_val" value="15" class="w-14 px-1.5 py-1 rounded text-right text-emerald-400" oninput="calculateAll()">
               </div>
             </div>
             <div class="flex justify-between items-center gap-2">
@@ -537,11 +530,9 @@
       return { discountedPrice, totalLiters, paidLiters, freeLiters, amountPaid, actualPrice };
     }
 
-    function applyZhPreset(base, disc, vmin, vval) {
+    function applyZhPreset(base, disc) {
       document.getElementById('zhs_base').value = Number(base).toFixed(2);
       document.getElementById('zhs_disc').value = Number(disc).toFixed(2);
-      document.getElementById('zhs_v_min').value = vmin;
-      document.getElementById('zhs_v_val').value = vval;
       calculateAll();
     }
     // 珠海 Shell 日期優惠：逢週三/六 −¥0.98；逢 8／18／28 號 −¥1.88（不疊加，取較大）
@@ -641,8 +632,6 @@
       // 3. Zhuhai Shell
       const zhsBase = parseFloat(document.getElementById('zhs_base').value) || 0;
       const zhsDisc = parseFloat(document.getElementById('zhs_disc').value) || 0;
-      const zhsVMin = parseFloat(document.getElementById('zhs_v_min').value) || 0;
-      const zhsVVal = parseFloat(document.getElementById('zhs_v_val').value) || 0;
       // 過境路費：tick box 控制有／沒有；¥142.5 × 2（來回）再依匯率換算
       const zhsTollOn = document.getElementById('zhs_toll_on').checked;
       const zhsTollRMB = ZHS_TOLL_RMB_PER_TRIP * 2;
@@ -651,9 +640,8 @@
         ? `¥${zhsTollRMB.toFixed(1)} ≈ HK$${zhsExtra.toFixed(0)}`
         : '未計（¥0）';
 
-      const zhsAfterCardRMB = Math.max(0, (zhsBase - zhsDisc) * liters);
-      const zhsVoucherRMB = (zhsVMin > 0 && zhsAfterCardRMB >= zhsVMin) ? zhsVVal : 0;
-      const zhsFinalRMB = Math.max(0, zhsAfterCardRMB - zhsVoucherRMB);
+      // 珠海 Shell 不設滿額券：折後金額即最終金額（RMB）
+      const zhsFinalRMB = Math.max(0, (zhsBase - zhsDisc) * liters);
       const zhsFinalHKD = (zhsFinalRMB * fx) + zhsExtra;
       const zhsNetLHKD = zhsFinalHKD / liters;
       const zhsFold = hksBase > 0 ? (zhsNetLHKD / hksBase * 10) : 0;
