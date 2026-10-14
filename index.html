@@ -886,11 +886,27 @@
           price = parseMxnzp(await (await fetch(CN_APIS.mxnzp + '?' + q.toString())).json());
         } else if (src === 'qiyoujiage') {
           const path = document.getElementById('cn_city').value;
-          const res = await fetch('https://r.jina.ai/http://www.qiyoujiage.com/' + path);
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          const r = parseQiyoujiage(await res.text());
+          let r = null, local = false;
+          // 1) 先讀 repo 內的每日快照（GitHub Actions 產生；免代理、最快）
+          try {
+            const lr = await fetch('data/cn98.json', { cache: 'no-store' });
+            if (lr.ok) {
+              const snap = await lr.json();
+              const c = snap && snap.cities && snap.cities[path];
+              if (c && c.p98) {
+                r = { p98: c.p98, p95: c.p95, p92: c.p92, date: c.date || String(snap.updated || '').slice(0, 10) };
+                local = true;
+              }
+            }
+          } catch (e) { /* 無快照 → 改用代理 */ }
+          // 2) 快照未涵蓋此城市 → 經 r.jina.ai 即時讀取
+          if (!r) {
+            const res = await fetch('https://r.jina.ai/http://www.qiyoujiage.com/' + path);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            r = parseQiyoujiage(await res.text());
+          }
           price = r.p98;
-          extra = r.date ? `（${r.date}）` : '';
+          extra = (r.date ? `（${r.date}` : '（') + (local ? '，每日快照' : '，即時查詢') + '）';
         } else if (src === 'showapi') {
           const res = await fetch(CN_APIS.showapi + '?prov=' + encodeURIComponent(prov), { headers: { 'Authorization': 'APPCODE ' + key } });
           if (!res.ok) throw new Error('HTTP ' + res.status);
