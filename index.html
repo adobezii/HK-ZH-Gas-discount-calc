@@ -373,8 +373,11 @@
               </div>
             </div>
             <div class="flex justify-between items-center gap-2">
-              <span class="text-slate-300 shrink-0">過境路費攤分 (HK$)</span>
-              <input type="number" id="zhs_extra_hkd" value="0" step="50" class="w-24 px-2 py-1 rounded text-right" oninput="calculateAll()">
+              <label class="flex items-center gap-2 text-slate-300 cursor-pointer">
+                <input type="checkbox" id="zhs_toll_on" checked class="accent-emerald-500" onchange="calculateAll()">
+                <span>計入過境路費（¥142.5 × 2 來回）</span>
+              </label>
+              <span id="zhs_toll_hkd" class="text-right text-slate-400">-</span>
             </div>
           </div>
 
@@ -428,6 +431,7 @@
       { id: "starCard-350-50", description: "私人能源卡 - 入滿$350減$50", spend: 350, discount: 50, validCardType: "starCard", validFor: ["standard", "premium"] }
     ];
     const CALTEX_PRICES_FALLBACK = { standard: 34.72, premium: 36.52 };
+    const ZHS_TOLL_RMB_PER_TRIP = 142.5; // 單程過境路費（RMB），來回 × 2
 
     const PRICE_API = "https://hkg-deadline.github.io/hk-petrol-price-crawler/json/";
     const CN_APIS = {
@@ -639,7 +643,13 @@
       const zhsDisc = parseFloat(document.getElementById('zhs_disc').value) || 0;
       const zhsVMin = parseFloat(document.getElementById('zhs_v_min').value) || 0;
       const zhsVVal = parseFloat(document.getElementById('zhs_v_val').value) || 0;
-      const zhsExtra = parseFloat(document.getElementById('zhs_extra_hkd').value) || 0;
+      // 過境路費：tick box 控制有／沒有；¥142.5 × 2（來回）再依匯率換算
+      const zhsTollOn = document.getElementById('zhs_toll_on').checked;
+      const zhsTollRMB = ZHS_TOLL_RMB_PER_TRIP * 2;
+      const zhsExtra = zhsTollOn ? zhsTollRMB * fx : 0;
+      document.getElementById('zhs_toll_hkd').textContent = zhsTollOn
+        ? `¥${zhsTollRMB.toFixed(1)} ≈ HK$${zhsExtra.toFixed(0)}`
+        : '未計（¥0）';
 
       const zhsAfterCardRMB = Math.max(0, (zhsBase - zhsDisc) * liters);
       const zhsVoucherRMB = (zhsVMin > 0 && zhsAfterCardRMB >= zhsVMin) ? zhsVVal : 0;
