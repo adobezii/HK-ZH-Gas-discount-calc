@@ -95,7 +95,7 @@ actualPrice     = amountPaid / totalLiters          # 券後每升實付
 | 內地 98# 油價 | ShowAPI 今日油價（`ali-todayoil.showapi.com`，APPCODE 認證） | 需自行申請 APPCODE；允許 CORS |
 | 內地 98# 油價 | 起零數據全國油價 V2（`api.istero.com`，token 認證） | 需自行申請 token |
 | 內地 98# 油價 | RollToolsApi 全國油價（`www.mxnzp.com/api/oil/search`） | 需自行申請 app_id／app_secret；允許 CORS |
-| 內地 98# 油價（免憑證） | 汽油价格网（`www.qiyoujiage.com`，經 `r.jina.ai` 讀取） | 免註冊、免 Key；來源為 HTML，經代理轉純文字後解析；可選城市（珠海／廣州／深圳／東莞／佛山／中山／廣東） |
+| 內地 98# 油價（**預設，免憑證**） | 汽油价格网（`www.qiyoujiage.com`，經 `r.jina.ai` 讀取） | 免註冊、免 Key；開頁自動抓取珠海（可選城市：珠海／廣州／深圳／東莞／佛山／中山／廣東） |
 | 香港折後價（手動） | 消委會「油價資訊通」 | 無公開 API，供手動輸入參考 |
 
 > 內地油價 API 的 APPCODE／token 由使用者自行申請填入，本專案不內置任何憑證；留空則手動輸入。

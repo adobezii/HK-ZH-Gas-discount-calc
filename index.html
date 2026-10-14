@@ -80,11 +80,11 @@
         <div class="flex items-center justify-between gap-2">
           <span class="text-slate-300 shrink-0">內地油價來源</span>
           <select id="cn_source" class="flex-1 min-w-0 px-2 py-1 rounded" onchange="applyCnSource()">
+            <option value="qiyoujiage">汽油价格网（免憑證，預設）</option>
             <option value="apihz">接口盒子 全國油價（id + key）</option>
             <option value="showapi">ShowAPI 今日油價（APPCODE）</option>
             <option value="istero">起零數據全國油價（token）</option>
             <option value="mxnzp">RollToolsApi 全國油價（app_id + app_secret）</option>
-            <option value="qiyoujiage">汽油价格网（免憑證，經 r.jina.ai）</option>
           </select>
         </div>
         <div class="flex items-center justify-between gap-2" id="cn_prov_wrap">
@@ -922,6 +922,9 @@
       calculateAll();
       fetchHkPrices();
       fetchFx();
+
+      // 預設內地來源免憑證（汽油价格网）→ 開頁自動抓取珠海油價
+      if (document.getElementById('cn_source').value === 'qiyoujiage') fetchCnPrice();
     };
   </script>
 </body>
