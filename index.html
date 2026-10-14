@@ -310,7 +310,7 @@
               <div class="w-3 h-7 rounded bg-emerald-500"></div>
               <div>
                 <h2 class="text-base font-bold text-white">珠海 Shell 蜆殼</h2>
-                <p class="text-[11px] text-slate-400">V-Power 98# / 95# 汽油 (RMB 計價)</p>
+                <p class="text-[11px] text-slate-400">V-Power 98# 汽油 (RMB 計價)</p>
               </div>
             </div>
             <span class="px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-full">跨境對照</span>
@@ -329,7 +329,7 @@
 
           <div class="mt-3">
             <label class="text-[11px] text-slate-400 block mb-1">快速套用：</label>
-            <div class="grid grid-cols-3 gap-1.5">
+            <div class="grid grid-cols-2 gap-1.5">
               <button type="button" onclick="applyZhPreset(9.95, 1.88)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
                 <div class="font-bold text-amber-300">8／18／28</div>
                 <div class="text-[10px] text-slate-400">98# 減 ¥1.88/L</div>
@@ -337,10 +337,6 @@
               <button type="button" onclick="applyZhPreset(9.95, 0.98)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
                 <div class="font-bold text-sky-300">週三／六</div>
                 <div class="text-[10px] text-slate-400">98# 減 ¥0.98/L</div>
-              </button>
-              <button type="button" onclick="applyZhPreset(8.65, 0.40)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
-                <div class="font-bold text-emerald-300">珠海 95#</div>
-                <div class="text-[10px] text-slate-400">¥8.65 減 ¥0.4/L</div>
               </button>
             </div>
           </div>
@@ -387,6 +383,10 @@
           <div class="flex justify-between items-center mt-1 text-[11px] text-slate-400">
             <span>相當於香港牌價：<strong id="zhs_vs_hk_pct" class="text-emerald-400">2.7 折</strong></span>
             <span id="zhs_saved_vs_hk">比香港牌價平 HK$ 1,583</span>
+          </div>
+          <div class="flex justify-between items-center mt-1 text-[11px]">
+            <span class="text-slate-400">打和升數（抵消路費）</span>
+            <span id="zhs_breakeven" class="font-semibold text-amber-300 text-right">-</span>
           </div>
         </div>
       </div>
@@ -658,6 +658,23 @@
       const bestHKFinal = Math.min(hksFinal, calFinal);
       const bestHKName = shellWinsHK ? "香港 Shell" : "香港 Caltex";
       const hkDiff = Math.abs(hksFinal - calFinal);
+
+      // 打和升數：抵消過境路費所需的最少升數 = 路費(HK$) ÷ (香港最佳每升 − 珠海每升)
+      const bestHKPerL = bestHKFinal / liters;
+      const zhPerLNoToll = Math.max(0, zhsBase - zhsDisc) * fx;
+      let beText;
+      if (!zhsTollOn) {
+        beText = '未計路費，無需打和';
+      } else {
+        const unitSave = bestHKPerL - zhPerLNoToll;
+        if (unitSave <= 0) {
+          beText = '珠海單價不低於香港，加多亦不抵';
+        } else {
+          const beLiters = zhsExtra / unitSave;
+          beText = `${beLiters.toFixed(1)} L` + (liters >= beLiters ? `（目前 ${liters.toFixed(1)}L 已打和）` : `（目前 ${liters.toFixed(1)}L 未夠）`);
+        }
+      }
+      document.getElementById('zhs_breakeven').textContent = beText;
       document.getElementById('hkWinnerText').innerText = `${bestHKName} 勝 (平 HK$${hkDiff.toFixed(1)})`;
       const zhSave = bestHKFinal - zhsFinalHKD;
       document.getElementById('zhuhaiSaveText').innerText = zhSave > 0 ? `再慳 HK$${zhSave.toFixed(0)}` : `計路費後香港較平`;
@@ -873,7 +890,7 @@
           if (!res.ok) throw new Error('HTTP ' + res.status);
           const r = parseQiyoujiage(await res.text());
           price = r.p98;
-          extra = `（95# ¥${r.p95 != null ? r.p95 : '-'}${r.date ? '，' + r.date : ''}）`;
+          extra = r.date ? `（${r.date}）` : '';
         } else if (src === 'showapi') {
           const res = await fetch(CN_APIS.showapi + '?prov=' + encodeURIComponent(prov), { headers: { 'Authorization': 'APPCODE ' + key } });
           if (!res.ok) throw new Error('HTTP ' + res.status);
