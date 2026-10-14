@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+# 避免定時與手動觸發同時執行而互相推擠
+concurrency:
+  group: update-cn-price
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -25,7 +30,9 @@ jobs:
           git add data/cn98.json
           if git diff --staged --quiet; then
             echo "no change; nothing to commit"
-          else
-            git commit -m "chore(data): 更新內地 98# 油價快照"
-            git push
+            exit 0
           fi
+          git commit -m "chore(data): 更新內地 98# 油價快照"
+          # 期間若有人推送，先 rebase 再推，避免 non-fast-forward 失敗
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

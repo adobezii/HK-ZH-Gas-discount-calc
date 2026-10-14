@@ -1,41 +1,35 @@
 {
-  "updated": "2026-10-14T04:55:28Z",
-  "source": "qiyoujiage.com",
+  "updated": "2026-10-14T05:16:43Z",
+  "updated_hkt": "2026-10-14",
+  "source": "www.qiyoujiage.com",
   "cities": {
     "guangdong/zhuhai.shtml": {
       "name": "珠海",
-      "p98": 11.35,
-      "date": ""
+      "p98": 11.35
     },
     "guangdong/guangzhou.shtml": {
       "name": "廣州",
-      "p98": 11.35,
-      "date": ""
+      "p98": 11.35
     },
     "guangdong/shenzhen.shtml": {
       "name": "深圳",
-      "p98": 11.35,
-      "date": ""
+      "p98": 11.35
     },
     "guangdong/dongguan.shtml": {
       "name": "東莞",
-      "p98": 11.35,
-      "date": ""
+      "p98": 11.35
     },
     "guangdong/foshan.shtml": {
       "name": "佛山",
-      "p98": 11.35,
-      "date": ""
+      "p98": 11.35
     },
     "guangdong/zhongshan.shtml": {
       "name": "中山",
-      "p98": 11.35,
-      "date": ""
+      "p98": 11.35
     },
     "guangdong.shtml": {
       "name": "廣東",
-      "p98": 11.35,
-      "date": ""
+      "p98": 11.35
     }
   }
 }

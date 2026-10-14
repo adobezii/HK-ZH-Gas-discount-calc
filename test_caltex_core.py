@@ -136,8 +136,39 @@ def test_parse_showapi_oilprice_list():
         },
     }
     assert approx(parse_showapi_oilprice(payload, "广东"), 9.10)
-    # 指定省份不存在時回退第一筆可解析值
-    assert approx(parse_showapi_oilprice(payload, "上海"), 9.03)
+    # 回應帶省份資訊但查無此省 → 必須報錯，不得回退成別省價格
+    try:
+        parse_showapi_oilprice(payload, "上海")
+    except ValueError as exc:
+        assert "上海" in str(exc)
+    else:
+        raise AssertionError("省份不符時應拋出 ValueError，不可回退其他省份")
+
+
+def test_parse_showapi_does_not_leak_other_province():
+    """要求省份的 98# 為 null 時，不可回退成其他省份的價格（Critical 迴歸測試）。"""
+    payload = {"showapi_res_code": 0, "showapi_res_body": {"list": [
+        {"prov": "北京", "p98": "9.03"},
+        {"prov": "广东", "p98": None},
+    ]}}
+    try:
+        parse_showapi_oilprice(payload, "广东")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("要求省份無價時應拋出 ValueError")
+    # 回應不含省份欄位（由請求參數決定）→ 仍可取第一筆
+    assert approx(parse_showapi_oilprice({"showapi_res_code": 0, "showapi_res_body": {"data": {"p98": "9.10"}}}, "广东"), 9.10)
+
+
+def test_decode_json_handles_bom_and_gzip():
+    """_decode_json 需容忍 BOM（utf-8-sig）。"""
+    import gzip
+    import json
+    from caltex_core import _decode_json
+    body = json.dumps({"ok": 1}, ensure_ascii=False).encode("utf-8")
+    assert _decode_json(b"\xef\xbb\xbf" + body) == {"ok": 1}
+    assert _decode_json(gzip.compress(body)) == {"ok": 1}
 
 
 def test_parse_showapi_oilprice_nested_and_str():

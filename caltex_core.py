@@ -185,14 +185,17 @@ def fetch_cny_hkd_rate(timeout=5.0):
     import urllib.request
 
     for url in (
+        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/cny.json",
+        "https://latest.currency-api.pages.dev/v1/currencies/cny.json",
         "https://api.exchangerate.fun/latest?base=CNY",
         "https://open.er-api.com/v6/latest/CNY",
     ):
         try:
             with urllib.request.urlopen(url, timeout=timeout) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-            if data.get("rates") and data["rates"].get("HKD"):
-                return float(data["rates"]["HKD"])
+            rate = (data.get("rates") or {}).get("HKD") or (data.get("cny") or {}).get("hkd")
+            if rate:
+                return float(rate)
         except Exception:
             continue
     return FALLBACK_CNY_HKD
@@ -285,6 +288,9 @@ def parse_showapi_oilprice(payload, prov="广东"):
 
     兼容常見 schema：showapi_res_body.list[] / data[]，欄位 p98 / 98 / price98 等；
     亦會遞迴搜尋嵌套結構。解析失敗時拋 ValueError。
+
+    安全規則：回應若帶有省份資訊（prov），但沒有任何一筆符合要求省份，
+    寧可報錯，也不可回退成其他省份的價格（否則會在無提示下顯示錯省份油價）。
     """
     import json
 
@@ -315,11 +321,21 @@ def parse_showapi_oilprice(payload, prov="广东"):
     items.append(body)
 
     target = str(prov).strip()
-    ordered = sorted(
-        items,
-        key=lambda x: 0 if isinstance(x, dict) and str(x.get("prov", "")).strip() == target else 1,
-    )
-    for item in ordered:
+    dict_items = [x for x in items if isinstance(x, dict)]
+    has_prov = any(str(x.get("prov", "")).strip() for x in dict_items)
+
+    if has_prov:
+        # 只接受省份相符的資料；找不到就報錯，不回退其他省份
+        matched = [x for x in dict_items if str(x.get("prov", "")).strip() == target]
+        for item in matched:
+            price = _extract_98_price(item)
+            if price is not None and price > 0:
+                return price
+        provinces = sorted({str(x.get("prov", "")).strip() for x in dict_items if str(x.get("prov", "")).strip()})
+        raise ValueError(f"ShowAPI 回應沒有「{target}」的 98# 價格（回應省份：{', '.join(provinces)}）")
+
+    # 回應不含省份欄位（由請求參數決定省份）→ 取第一個可解析值
+    for item in dict_items:
         price = _extract_98_price(item)
         if price is not None and price > 0:
             return price
@@ -335,7 +351,7 @@ def _decode_json(raw):
     import zlib
 
     try:
-        return json.loads(raw.decode("utf-8"))
+        return json.loads(raw.decode("utf-8-sig"))  # utf-8-sig 可容忍 BOM
     except Exception:
         pass
     for fn in (
