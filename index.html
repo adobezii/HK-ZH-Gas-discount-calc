@@ -44,10 +44,61 @@
     details.adv[open] > summary { margin-bottom: 4px; }
     details.adv { border-top: 1px dashed #334155; margin-top: 10px; padding-top: 2px; }
 
+    /* ===== 「?」說明：長註解收合 ===== */
+    details.help > summary {
+      cursor: pointer; color: #7dd3fc; font-size: 11px; font-weight: 700;
+      list-style: none; min-height: 24px; display: inline-flex; align-items: center; gap: 6px;
+    }
+    details.help > summary::-webkit-details-marker { display: none; }
+    details.help > summary::before {
+      content: "?"; display: inline-flex; align-items: center; justify-content: center;
+      width: 15px; height: 15px; border-radius: 999px; border: 1px solid currentColor; font-size: 10px;
+    }
+    details.help[open] > summary::before { content: "×"; }
+    details.help > div { margin-top: 4px; }
+
+    /* ===== 手機底部摘要條：預留空間 ===== */
+    @media (max-width: 767px) {
+      body { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
+    }
+
+    /* ===== 淺色主題 ===== */
+    body.light { background-color: #f1f5f9; color: #0f172a; }
+    body.light .card-bg { background: #ffffff; border-color: #d8e0ea; }
+    body.light .text-white, body.light .text-slate-100, body.light .text-slate-200 { color: #0f172a !important; }
+    body.light .text-slate-300 { color: #1e293b !important; }
+    body.light .text-slate-400 { color: #475569 !important; }
+    body.light .text-slate-500 { color: #64748b !important; }
+    body.light .border-slate-800, body.light .border-slate-700, body.light .border-slate-600 { border-color: #cbd5e1 !important; }
+    body.light .bg-slate-950\/95 { background-color: rgba(248, 250, 252, .96) !important; }
+    body.light .bg-slate-900\/90, body.light .bg-slate-900\/70, body.light .bg-slate-900 { background-color: #eef2f7 !important; }
+    body.light .bg-slate-800, body.light .bg-slate-800\/80 { background-color: #eef2f7 !important; }
+    body.light input, body.light select { background: #ffffff; color: #0f172a; border-color: #cbd5e1; }
+    body.light #winnerBanner { background: #ecfdf5 !important; border-color: #6ee7b7 !important; }
+    body.light .text-emerald-400 { color: #047857 !important; }
+    body.light .text-sky-400, body.light .text-sky-300 { color: #0369a1 !important; }
+    body.light .text-amber-300, body.light .text-amber-400 { color: #b45309 !important; }
+    body.light .text-red-400 { color: #b91c1c !important; }
+    body.light .text-yellow-400 { color: #a16207 !important; }
+    body.light details.adv { border-top-color: #d8e0ea; }
+    body.light details.help > summary { color: #0369a1; }
+
+    /* ===== 列印：一頁式摘要 ===== */
+    @media print {
+      body { background: #fff !important; color: #000 !important; padding: 0 !important; }
+      .m-stripe, #miniBar, #themeToggle, #shareBox > summary, button, details:not(#shareBox) { display: none !important; }
+      .grid { display: block !important; }
+      .card-bg { background: #fff !important; border: 1px solid #bbb !important; margin-bottom: 8px; break-inside: avoid; }
+      * { color: #000 !important; box-shadow: none !important; }
+      #shareBox { border: none !important; }
+      #shareBox > div { padding: 0 !important; }
+      #summaryText { background: #fff !important; border: none !important; font-size: 11px !important; }
+    }
+
     /* ===== 手機觸控與縮放修正 ===== */
     html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body {
-      padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+      padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
       -webkit-tap-highlight-color: transparent;
@@ -67,7 +118,7 @@
     }
   </style>
 </head>
-<body class="min-h-screen pb-14">
+<body class="min-h-screen pb-20">
 
   <div class="m-stripe w-full"></div>
 
@@ -78,6 +129,8 @@
         <div class="flex items-center gap-2">
           <span class="px-2 py-0.5 text-[11px] font-bold uppercase bg-blue-900/60 text-blue-300 rounded border border-blue-700/50">HK-ZH-Gas-discount-calc v2.0</span>
           <span id="currentDayBadge" class="px-2 py-0.5 text-[11px] font-semibold bg-amber-500/20 text-amber-300 rounded border border-amber-500/40">載入日期中...</span>
+          <button id="themeToggle" type="button" onclick="toggleTheme()" title="切換淺色／深色主題"
+                  class="px-2 py-0.5 text-[11px] font-semibold rounded border border-slate-600 bg-slate-800 text-slate-200 cursor-pointer">🌙 深色</button>
         </div>
         <h1 class="text-2xl font-extrabold tracking-tight mt-1 text-white">
           珠海 Shell vs 香港 Shell vs 加德士 <span class="text-sky-400">實時比價計算機</span>
@@ -156,14 +209,19 @@
           <div id="hk_status" class="text-[11px] text-slate-400">-</div>
           <div id="fx_status" class="text-[11px] text-slate-400">-</div>
         </div>
-        <div class="md:col-span-2 text-[11px] text-slate-500 leading-relaxed">
-          憑證只會傳送給你選擇的 API 供應商，不會寫入程式或儲存。香港牌價／折扣卡／油券：hkg-deadline/hk-petrol-price-crawler（data.gov.hk）；匯率：exchangerate.fun／open.er-api.com。
+        <div class="md:col-span-2">
+          <details class="help">
+            <summary>資料來源與憑證說明</summary>
+            <div class="text-[11px] leading-relaxed text-slate-400">
+              憑證只會傳送給你選擇的 API 供應商，不會寫入程式或儲存。香港牌價／折扣卡／油券：hkg-deadline/hk-petrol-price-crawler（data.gov.hk）；匯率：fawazahmed0 currency-api（jsDelivr）／exchangerate.fun／open.er-api.com；內地油價：汽油价格网（每日快照）。
+            </div>
+          </details>
         </div>
       </div>
     </details>
 
     <!-- Top Winner Banner -->
-    <div class="my-5 p-4 rounded-xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-900 border border-emerald-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div id="winnerBanner" class="my-5 p-4 rounded-xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-900 border border-emerald-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
       <div>
         <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">當前設定最抵入油方案</div>
         <div id="bestChoiceTitle" class="text-xl md:text-2xl font-black text-white mt-1 leading-tight">-</div>
@@ -351,8 +409,13 @@
               <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">每張券實付</span><span id="cal_per_coupon" class="font-semibold text-emerald-400 text-right">-</span></div>
               <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">可用券數（餘量按卡價）</span><span id="cal_split" class="font-semibold text-amber-300 text-right">-</span></div>
               <div class="flex justify-between items-baseline gap-2"><span class="text-slate-400 shrink-0">券後等效每升（整張券）</span><span id="cal_equiv" class="font-semibold text-slate-200 text-right">-</span></div>
-              <div class="pt-1.5 mt-0.5 border-t border-slate-800/80 text-[10px] leading-relaxed text-slate-500">
-                門檻 <b class="text-slate-400">$350</b> 以<b class="text-slate-400">牌價</b>計；券值 <b class="text-slate-400">$50</b> 亦按牌價折算免費升數（是折減，非額外送油）。每張券限一次交易，未達門檻不套用。
+              <div class="pt-1.5 mt-0.5 border-t border-slate-800/80">
+                <details class="help">
+                  <summary>門檻與券值點計？</summary>
+                  <div class="text-[11px] leading-relaxed text-slate-400">
+                    門檻 <b>$350</b> 以<b>牌價</b>計；券值 <b>$50</b> 亦按牌價折算免費升數（是折減，非額外送油）。每張券限一次交易，未達門檻不套用。
+                  </div>
+                </details>
               </div>
             </div>
           </div>
@@ -470,6 +533,42 @@
     </div>
   </div>
 
+    <!-- 分享 / 列印 -->
+    <details id="shareBox" class="card-bg rounded-xl mt-4 overflow-hidden">
+      <summary class="px-4 py-2.5 text-xs font-bold text-sky-300 cursor-pointer select-none">📋 分享／列印目前結果</summary>
+      <div class="px-4 pb-4">
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <button type="button" onclick="copySummary()" class="text-xs px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-semibold">複製摘要</button>
+          <button type="button" onclick="window.print()" class="text-xs px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-100 font-semibold">列印 / 存成 PDF</button>
+          <span id="copyStatus" class="text-[11px] text-slate-400"></span>
+        </div>
+        <pre id="summaryText" class="text-[11px] leading-relaxed text-slate-300 bg-slate-900/70 border border-slate-800 rounded-lg p-3 whitespace-pre-wrap break-words">-</pre>
+      </div>
+    </details>
+
+  <!-- 手機底部固定摘要條 -->
+  <div id="miniBar" class="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-slate-700 bg-slate-950/95 backdrop-blur"
+       style="padding: 6px 12px calc(6px + env(safe-area-inset-bottom))">
+    <div class="flex items-end justify-between gap-2 text-[11px]">
+      <div class="text-center leading-tight">
+        <div class="text-slate-400">Shell</div>
+        <div id="miniShell" class="font-bold text-white">-</div>
+      </div>
+      <div class="text-center leading-tight">
+        <div class="text-slate-400">加德士</div>
+        <div id="miniCaltex" class="font-bold text-white">-</div>
+      </div>
+      <div class="text-center leading-tight">
+        <div class="text-slate-400">珠海</div>
+        <div id="miniZhuhai" class="font-bold text-white">-</div>
+      </div>
+      <div class="text-right leading-tight pl-2 border-l border-slate-700">
+        <div class="text-slate-400">最抵</div>
+        <div id="miniBest" class="font-extrabold text-emerald-400">-</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let currentShellFuel = 'vpower'; // 'vpower' or 'fuelsave'
     let currentShellDay = 'wed';     // 'wed', 'wknd', 'wkdy'
@@ -531,6 +630,62 @@
       const n = Number(v);
       if (!isFinite(n)) return '-';
       return n.toLocaleString('en-HK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // ===== 主題切換（深色／淺色）=====
+    function applyTheme(theme) {
+      const light = theme === 'light';
+      document.body.classList.toggle('light', light);
+      const btn = document.getElementById('themeToggle');
+      if (btn) btn.textContent = light ? '☀️ 淺色' : '🌙 深色';
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', light ? '#f1f5f9' : '#0b0f19');
+    }
+    function toggleTheme() {
+      const next = document.body.classList.contains('light') ? 'dark' : 'light';
+      try { localStorage.setItem('hkzh_theme', next); } catch (e) { /* 私隱模式 */ }
+      applyTheme(next);
+    }
+
+    // 最近一次計算結果（供底部摘要條與分享文字使用）
+    const lastCalc = {};
+
+    function buildSummary() {
+      const L = [];
+      const day = (document.getElementById('currentDayBadge').innerText || '').replace(/\s*（.*?）\s*/g, '');
+      L.push('【港珠油價比價】' + day);
+      L.push('入油 ' + (lastCalc.liters || 0).toFixed(2) + 'L　匯率 1¥ = HK$' + (parseFloat(document.getElementById('exchangeRate').value) || 0).toFixed(4));
+      L.push('');
+      L.push('■ 香港 Shell（' + (currentShellFuel === 'vpower' ? 'V-Power' : 'FuelSave') + '）');
+      L.push('　每升實付 HK$' + money(lastCalc.hksPerL) + '　總額 HK$' + money(lastCalc.hksFinal));
+      L.push('■ 香港加德士（' + (caltexPetrol === 'standard' ? '特配Techron® 黃金' : '特配Techron® 白金') + '）');
+      L.push('　每升實付 HK$' + money(lastCalc.calPerL) + '　總額 HK$' + money(lastCalc.calFinal));
+      L.push('■ 珠海 Shell 98#（' + (lastCalc.zhsTollOn ? '含' : '未含') + '過境路費）');
+      L.push('　折合每升 HK$' + money(lastCalc.zhsPerL) + '　總額 HK$' + money(lastCalc.zhsFinal));
+      L.push('');
+      L.push('★ 最抵：' + lastCalc.bestName + '　HK$' + money(lastCalc.bestPerL) + '/L');
+      if (typeof lastCalc.zhSave === 'number') {
+        L.push(lastCalc.zhSave > 0
+          ? '　北上珠海可比香港最抵再省 HK$' + lastCalc.zhSave.toFixed(1) + '（' + (lastCalc.zhsTollOn ? '已計路費' : '未計路費') + '）'
+          : '　計路費後香港較平（差 HK$' + Math.abs(lastCalc.zhSave).toFixed(1) + '）');
+      }
+      L.push('');
+      L.push('（價格僅供參考，以油站實際為準）');
+      return L.join('\n');
+    }
+
+    function copySummary() {
+      const txt = document.getElementById('summaryText').textContent;
+      const el = document.getElementById('copyStatus');
+      const done = ok => {
+        el.textContent = ok ? '已複製 ✓' : '複製失敗，請長按選取文字';
+        setTimeout(() => { el.textContent = ''; }, 2500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(() => done(true)).catch(() => done(false));
+      } else {
+        done(false);
+      }
     }
 
     // 目標換算後寫回共用升數（依輸入框上限夾限）
@@ -874,6 +1029,21 @@
       document.getElementById('bestChoiceSub').innerText =
         `入 ${liters.toFixed(2)}L：${bestHKName} 比次選平 HK$ ${hkDiff.toFixed(1)}；` +
         `珠海 Shell 折合 HK$ ${money(zhsNetLHKD)}/L（${zhsTollOn ? '含' : '未含'}路費）`;
+
+      // 手機底部摘要條 + 分享文字
+      lastCalc.liters = liters;
+      lastCalc.hksFinal = hksFinal;      lastCalc.hksPerL = liters > 0 ? hksFinal / liters : 0;
+      lastCalc.calFinal = calFinal;      lastCalc.calPerL = liters > 0 ? calFinal / liters : 0;
+      lastCalc.zhsFinal = zhsFinalHKD;   lastCalc.zhsPerL = zhsNetLHKD;
+      lastCalc.bestName = bestHKName;    lastCalc.bestPerL = liters > 0 ? bestHKFinal / liters : 0;
+      lastCalc.zhSave = zhSave;          lastCalc.zhsTollOn = zhsTollOn;
+      const bestAll = Math.min(bestHKFinal, zhsFinalHKD);
+      const bestAllLabel = zhsFinalHKD <= bestHKFinal ? '珠海' : bestHKName.replace('香港 ', '');
+      document.getElementById('miniShell').textContent = money(hksFinal / liters);
+      document.getElementById('miniCaltex').textContent = money(calFinal / liters);
+      document.getElementById('miniZhuhai').textContent = money(zhsNetLHKD);
+      document.getElementById('miniBest').textContent = bestAllLabel + ' ' + money(bestAll / liters);
+      document.getElementById('summaryText').textContent = buildSummary();
     }
 
     // ===== 自動抓價 =====
@@ -1155,6 +1325,7 @@
       applyCnSource();
       buildCaltexSelects();
       renderShellLabels();
+      try { applyTheme(localStorage.getItem('hkzh_theme') || 'dark'); } catch (e) { applyTheme('dark'); }
       document.getElementById('cal_base').addEventListener('input', () => { caltexManualPrice = true; });
       document.getElementById('hks_base').addEventListener('input', () => { shellManualPrice = true; });
 
