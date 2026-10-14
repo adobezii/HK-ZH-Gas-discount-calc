@@ -46,6 +46,7 @@ python3 test_caltex_core.py
 ```
 HK-ZH-Gas-discount-calc/
 ├── index.html           # 單檔 Web 版（加德士計算機 + 跨境比價）
+├── v2.html              # v2.0 三欄比價（香港 Shell vs 香港 Caltex vs 珠海 Shell）
 ├── caltex_core.py       # 核心算法（Python，無第三方依賴）
 ├── fuel_calc.py         # Streamlit 互動介面
 ├── test_caltex_core.py  # 單元測試
