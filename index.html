@@ -330,11 +330,11 @@
           <div class="mt-3">
             <label class="text-[11px] text-slate-400 block mb-1">快速套用：</label>
             <div class="grid grid-cols-2 gap-1.5">
-              <button type="button" onclick="applyZhPreset(9.95, 1.88)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
+              <button type="button" onclick="applyZhDiscount(1.88)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
                 <div class="font-bold text-amber-300">8／18／28</div>
                 <div class="text-[10px] text-slate-400">98# 減 ¥1.88/L</div>
               </button>
-              <button type="button" onclick="applyZhPreset(9.95, 0.98)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
+              <button type="button" onclick="applyZhDiscount(0.98)" class="text-[11px] py-1.5 px-1 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 leading-tight">
                 <div class="font-bold text-sky-300">週三／六</div>
                 <div class="text-[10px] text-slate-400">98# 減 ¥0.98/L</div>
               </button>
@@ -343,8 +343,8 @@
 
           <div class="space-y-2.5 mt-3.5 text-xs">
             <div class="flex justify-between items-center gap-2">
-              <span class="text-slate-300 shrink-0">珠海掛牌價 (¥/L)</span>
-              <input type="number" id="zhs_base" value="9.95" step="0.05" class="w-24 px-2 py-1 rounded text-right font-semibold text-amber-300" oninput="saveAndCalc()">
+              <span class="text-slate-300 shrink-0">珠海 98# 掛牌價 (¥/L)</span>
+              <input type="number" id="zhs_base" value="11.35" step="0.05" class="w-24 px-2 py-1 rounded text-right font-semibold text-amber-300" oninput="saveAndCalc()">
             </div>
             <div class="flex justify-between items-center gap-2">
               <span class="text-slate-300 shrink-0">每升立減 (¥/L)</span>
@@ -530,8 +530,8 @@
       return { discountedPrice, totalLiters, paidLiters, freeLiters, amountPaid, actualPrice };
     }
 
-    function applyZhPreset(base, disc) {
-      document.getElementById('zhs_base').value = Number(base).toFixed(2);
+    // 只套用每升立減，永不改動 98# 掛牌價
+    function applyZhDiscount(disc) {
       document.getElementById('zhs_disc').value = Number(disc).toFixed(2);
       calculateAll();
     }
@@ -571,7 +571,7 @@
         localStorage.setItem('hkzh_fx', document.getElementById('exchangeRate').value);
         localStorage.setItem('hkzh_hks_cc', document.getElementById('hks_cc').value);
         localStorage.setItem('hkzh_cal_cc', document.getElementById('cal_cc').value);
-        localStorage.setItem('hkzh_zhs_base', document.getElementById('zhs_base').value);
+        localStorage.setItem('hkzh_zhs_base98', document.getElementById('zhs_base').value);
       } catch (e) {}
       calculateAll();
     }
@@ -931,7 +931,7 @@
         if (localStorage.getItem('hkzh_fx')) document.getElementById('exchangeRate').value = localStorage.getItem('hkzh_fx');
         if (localStorage.getItem('hkzh_hks_cc')) document.getElementById('hks_cc').value = localStorage.getItem('hkzh_hks_cc');
         if (localStorage.getItem('hkzh_cal_cc')) document.getElementById('cal_cc').value = localStorage.getItem('hkzh_cal_cc');
-        if (localStorage.getItem('hkzh_zhs_base')) document.getElementById('zhs_base').value = localStorage.getItem('hkzh_zhs_base');
+        if (localStorage.getItem('hkzh_zhs_base98')) document.getElementById('zhs_base').value = localStorage.getItem('hkzh_zhs_base98');
       } catch (e) {}
 
       const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
