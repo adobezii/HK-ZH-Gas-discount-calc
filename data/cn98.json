@@ -9,8 +9,7 @@
     },
     "guangdong/guangzhou.shtml": {
       "name": "廣州",
-      "p98": 11.35,
-      "stale": true
+      "p98": 11.35
     },
     "guangdong/shenzhen.shtml": {
       "name": "深圳",
