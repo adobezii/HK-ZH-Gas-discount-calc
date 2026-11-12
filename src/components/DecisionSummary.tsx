@@ -11,6 +11,14 @@ export function DecisionSummary({ best, quotes, config }: Props) {
     .filter((quote) => quote.stationId !== best.stationId)
     .sort((a, b) => a.totalHkd - b.totalHkd)[0];
   const gap = second ? second.totalHkd - best.totalHkd : 0;
+  const tollStatus =
+    config.gdShell.includeToll && config.gdSinopec.includeToll
+      ? "兩站均計"
+      : !config.gdShell.includeToll && !config.gdSinopec.includeToll
+        ? "兩站未計"
+        : `珠海 ${config.gdShell.includeToll ? "計" : "未計"} · 中石化 ${
+            config.gdSinopec.includeToll ? "計" : "未計"
+          }`;
 
   return (
     <section className="panel decision" aria-live="polite">
@@ -31,10 +39,14 @@ export function DecisionSummary({ best, quotes, config }: Props) {
         <div className="metric-value">HK${best.totalHkd.toFixed(2)}</div>
       </div>
       <div>
-        <div className="metric-label">匯率／路費</div>
+        <div className="metric-label">匯率</div>
         <div className="metric-value">
           1¥ = {config.fx.toFixed(4)}
         </div>
+      </div>
+      <div className="decision-toll">
+        <div className="metric-label">路費設定</div>
+        <div className="metric-value">{tollStatus}</div>
       </div>
     </section>
   );

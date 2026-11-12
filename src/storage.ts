@@ -1,5 +1,10 @@
 import { createDefaultConfig } from "./data";
-import type { DashboardConfig } from "./types";
+import type {
+  DashboardConfig,
+  GdPriceOverride,
+  GdShellConfig,
+  GdSinopecConfig,
+} from "./types";
 
 const STORAGE_KEY = "hkzh.dashboard.v3";
 
@@ -8,17 +13,44 @@ export function loadConfig(): DashboardConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaults;
-    const parsed = JSON.parse(raw) as Partial<DashboardConfig>;
-    if (parsed.schemaVersion !== 1) return defaults;
+    const parsed = JSON.parse(raw) as Omit<
+      Partial<DashboardConfig>,
+      "schemaVersion"
+    > & { schemaVersion?: number };
+    if (parsed.schemaVersion !== 1 && parsed.schemaVersion !== 2) return defaults;
+    const migrateManualPrice = (
+      value: number | GdPriceOverride | undefined,
+    ): GdPriceOverride | undefined => {
+      if (value === undefined) return undefined;
+      if (typeof value === "number") {
+        return { value, scope: "manual", label: "手動價格" };
+      }
+      return value;
+    };
+    const gdShell: Partial<GdShellConfig> = {
+      ...defaults.gdShell,
+      ...(parsed.gdShell as Partial<GdShellConfig> | undefined),
+    };
+    const gdSinopec: Partial<GdSinopecConfig> = {
+      ...defaults.gdSinopec,
+      ...(parsed.gdSinopec as Partial<GdSinopecConfig> | undefined),
+    };
+    gdShell.manualPrice = migrateManualPrice(
+      (parsed.gdShell as Partial<GdShellConfig> | undefined)?.manualPrice,
+    );
+    gdSinopec.manualPrice = migrateManualPrice(
+      (parsed.gdSinopec as Partial<GdSinopecConfig> | undefined)?.manualPrice,
+    );
     return {
       ...defaults,
       ...parsed,
+      schemaVersion: 2,
       hkShell: { ...defaults.hkShell, ...parsed.hkShell },
       hkCaltex: { ...defaults.hkCaltex, ...parsed.hkCaltex },
       hkCnpc: { ...defaults.hkCnpc, ...parsed.hkCnpc },
       hkSinopec: { ...defaults.hkSinopec, ...parsed.hkSinopec },
-      gdShell: { ...defaults.gdShell, ...parsed.gdShell },
-      gdSinopec: { ...defaults.gdSinopec, ...parsed.gdSinopec },
+      gdShell: gdShell as GdShellConfig,
+      gdSinopec: gdSinopec as GdSinopecConfig,
     };
   } catch {
     return defaults;

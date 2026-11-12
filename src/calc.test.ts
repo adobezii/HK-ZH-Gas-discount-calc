@@ -4,6 +4,7 @@ import {
   cnpcDirectDiscount,
   getGdShellDiscount,
   hkSinopecDiscount,
+  sortQuotesByPrice,
 } from "./calc";
 import { createDefaultConfig } from "./data";
 import { fallbackLivePrices } from "./livePrices";
@@ -89,7 +90,11 @@ describe("quote costs", () => {
   it("愛跑98 路費可獨立關閉並計算回本", () => {
     const base = config();
     base.gdSinopec.includeToll = false;
-    base.gdSinopec.manualPrice = 11.65;
+    base.gdSinopec.manualPrice = {
+      value: 11.65,
+      scope: "city",
+      label: "珠海城市快照",
+    };
     const quotes = calculateQuotes(base, fallbackLivePrices, snapshot);
     const result = quote(quotes, "gd-sinopec");
     expect(result.totalHkd).toBeCloseTo((11.65 - 2) * 60 * 1.08, 6);
@@ -102,12 +107,62 @@ describe("quote costs", () => {
   it("加入路費後總額包含兩次單程路費", () => {
     const base = config();
     base.gdSinopec.includeToll = true;
-    base.gdSinopec.manualPrice = 11.65;
+    base.gdSinopec.manualPrice = {
+      value: 11.65,
+      scope: "city",
+      label: "珠海城市快照",
+    };
     const quotes = calculateQuotes(base, fallbackLivePrices, snapshot);
     const result = quote(quotes, "gd-sinopec");
     expect(result.totalHkd).toBeCloseTo(
       (11.65 - 2) * 60 * 1.08 + 142.5 * 2 * 1.08,
       5,
     );
+  });
+
+  it("路費不計入牌價節省", () => {
+    const base = config();
+    base.gdSinopec.includeToll = true;
+    base.gdSinopec.manualPrice = {
+      value: 11.65,
+      scope: "city",
+      label: "珠海城市快照",
+    };
+    const quotes = calculateQuotes(base, fallbackLivePrices, snapshot);
+    expect(quote(quotes, "gd-sinopec").listSavingHkd).toBeCloseTo(
+      2 * 60 * 1.08,
+      5,
+    );
+  });
+
+  it("省級 API 價格不冒充城市價", () => {
+    const base = config();
+    base.gdShell.manualPrice = {
+      value: 9.8,
+      scope: "province",
+      label: "廣東全省 API",
+    };
+    const quotes = calculateQuotes(base, fallbackLivePrices, snapshot);
+    const result = quote(quotes, "gd-shell");
+    expect(result.city).toBeUndefined();
+    expect(result.priceScope).toBe("province");
+    expect(result.sourceLabel).toBe("廣東全省 API");
+  });
+
+  it("同價排序保留固定站點順序", () => {
+    const quotes = calculateQuotes(config(), fallbackLivePrices, snapshot);
+    const synthetic = [quotes[2], quotes[0], quotes[1], quotes[3]].map((item) => ({
+      ...item,
+      totalHkd:
+        item.stationId === "hk-shell" || item.stationId === "hk-caltex"
+          ? 10
+          : 20,
+    }));
+    expect(sortQuotesByPrice(synthetic).map((item) => item.stationId)).toEqual([
+      "hk-shell",
+      "hk-caltex",
+      "hk-cnpc",
+      "hk-sinopec",
+    ]);
   });
 });

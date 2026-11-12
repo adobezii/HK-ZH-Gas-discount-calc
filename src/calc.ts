@@ -11,10 +11,13 @@ import type {
   CityBinding,
   CityPriceSnapshot,
   DashboardConfig,
+  GdPriceOverride,
   LivePrices,
+  PriceScope,
   QuoteResult,
   StationId,
 } from "./types";
+import { CITY_LABELS, STATIONS } from "./types";
 
 const dayOfWeek = (iso: string) => new Date(`${iso}T00:00:00`).getDay();
 const finite = (value: number) => (Number.isFinite(value) ? value : 0);
@@ -93,6 +96,19 @@ export function cityPrice(
     return { price: entry.p98, source: "snapshot", stale: Boolean(entry.stale) };
   }
   return { price: promotions.gdShell.fallback, source: "fallback", stale: false };
+}
+
+export function sortQuotesByPrice(quotes: QuoteResult[]): QuoteResult[] {
+  const stationOrder = new Map(
+    STATIONS.map((station, index) => [station.id, index]),
+  );
+  return [...quotes]
+    .sort(
+      (left, right) =>
+        left.totalHkd - right.totalHkd ||
+        (stationOrder.get(left.stationId) ?? 0) -
+          (stationOrder.get(right.stationId) ?? 0),
+    )
 }
 
 function cardAndCoupon(
@@ -192,7 +208,8 @@ export function calculateQuotes(
 
   const gdShellCity = resolveCity(config.gdShell.binding, config.globalCity);
   const shellCityPrice = cityPrice(gdShellCity, snapshot);
-  const gdShellBase = config.gdShell.manualPrice ?? shellCityPrice.price;
+  const gdShellBase =
+    config.gdShell.manualPrice?.value ?? shellCityPrice.price;
   const shellDiscountAmount = getGdShellDiscount(config.date);
   const gdShellRmb = Math.max(0, (gdShellBase - shellDiscountAmount) * liters);
   const gdShellFinal =
@@ -200,7 +217,8 @@ export function calculateQuotes(
 
   const gdSinopecCity = resolveCity(config.gdSinopec.binding, config.globalCity);
   const sinoCityPrice = cityPrice(gdSinopecCity, snapshot);
-  const gdSinopecBase = config.gdSinopec.manualPrice ?? sinoCityPrice.price;
+  const gdSinopecBase =
+    config.gdSinopec.manualPrice?.value ?? sinoCityPrice.price;
   const gdSinopecRmb = Math.max(
     0,
     (gdSinopecBase - config.gdSinopec.discountPerLiter) * liters,
@@ -227,6 +245,10 @@ export function calculateQuotes(
     source: "snapshot" | "api" | "manual" | "fallback",
     sourceLabel: string,
     city: City | undefined,
+    priceScope: PriceScope,
+    sourceUpdatedAt: string | undefined,
+    cityMode: "follow-global" | "override" | undefined,
+    listSavingHkd: number,
     breakdown: Array<{ label: string; value: string }>,
   ): QuoteResult => ({
     stationId,
@@ -237,10 +259,14 @@ export function calculateQuotes(
     unitPriceHkd: totalHkd / liters,
     totalHkd,
     grossHkd,
-    savingHkd: grossHkd - totalHkd,
     discountPerLiterHkd: (grossHkd - totalHkd) / liters,
     source,
     sourceLabel,
+    priceScope,
+    sourceUpdatedAt,
+    cityMode,
+    listSavingHkd,
+    savingVsWinnerHkd: totalHkd - winnerTotal,
     isWinner: Math.abs(totalHkd - winnerTotal) < 0.005,
     breakdown,
   });
@@ -256,6 +282,10 @@ export function calculateQuotes(
       live.loaded ? "api" : "fallback",
       live.loaded ? "香港油價公開資料" : "內建備用價",
       undefined,
+      live.loaded ? "live" : "fallback",
+      live.updatedAt,
+      undefined,
+      shellBase * liters - shellFinal,
       [
         { label: "牌價", value: `HK$ ${shellBase.toFixed(2)}/L` },
         { label: "直減", value: `HK$ ${shellDiscount.toFixed(2)}/L` },
@@ -272,6 +302,10 @@ export function calculateQuotes(
       live.loaded ? "api" : "fallback",
       live.loaded ? "卡券資料已同步" : "內建卡券",
       undefined,
+      live.loaded ? "live" : "fallback",
+      live.updatedAt,
+      undefined,
+      caltexBase * liters - caltexFinal,
       [
         { label: "牌價", value: `HK$ ${caltexBase.toFixed(2)}/L` },
         { label: "卡折扣", value: `HK$ ${cardDiscount.toFixed(2)}/L` },
@@ -291,6 +325,10 @@ export function calculateQuotes(
       live.loaded ? "api" : "fallback",
       live.loaded ? "香港油價公開資料" : "內建備用價",
       undefined,
+      live.loaded ? "live" : "fallback",
+      live.updatedAt,
+      undefined,
+      cnpcBase * liters - cnpcFinal,
       [
         { label: "牌價", value: `HK$ ${cnpcBase.toFixed(2)}/L` },
         { label: "純直減", value: `HK$ ${cnpcDiscount.toFixed(2)}/L` },
@@ -307,6 +345,10 @@ export function calculateQuotes(
       live.loaded ? "api" : "fallback",
       live.loaded ? "香港油價公開資料" : "內建備用價",
       undefined,
+      live.loaded ? "live" : "fallback",
+      live.updatedAt,
+      undefined,
+      sinohkBase * liters - sinohkFinal,
       [
         { label: "牌價", value: `HK$ ${sinohkBase.toFixed(2)}/L` },
         {
@@ -323,13 +365,17 @@ export function calculateQuotes(
       "#10b981",
       gdShellFinal,
       gdShellBase * liters * fx,
-      config.gdShell.manualPrice !== undefined ? "manual" : shellCityPrice.source,
-      config.gdShell.manualPrice !== undefined
-        ? "手動價格"
-        : `${shellCityPrice.stale ? "上次快照" : "城市快照"} · ${shellCityPrice.source === "fallback" ? "備用價" : "98# 快照"}`,
-      gdShellCity,
+      config.gdShell.manualPrice ? "manual" : shellCityPrice.source,
+      gdPriceLabel(config.gdShell.manualPrice, shellCityPrice.stale, shellCityPrice.source, gdShellCity),
+      gdDisplayCity(config.gdShell.manualPrice, shellCityPrice.source, gdShellCity),
+      gdPriceScope(config.gdShell.manualPrice, shellCityPrice.source),
+      config.gdShell.manualPrice
+        ? undefined
+        : snapshot.updated_hkt,
+      config.gdShell.binding.mode,
+      gdShellBase * liters * fx - gdShellRmb * fx,
       [
-        { label: "城市", value: gdShellCity },
+        { label: "城市", value: CITY_LABELS[gdShellCity] },
         { label: "人民幣牌價", value: `¥${gdShellBase.toFixed(2)}/L` },
         { label: "每升立減", value: `¥${shellDiscountAmount.toFixed(2)}/L` },
         {
@@ -345,13 +391,15 @@ export function calculateQuotes(
       "#3b82f6",
       gdSinopecFinal,
       gdSinopecBase * liters * fx,
-      config.gdSinopec.manualPrice !== undefined ? "manual" : sinoCityPrice.source,
-      config.gdSinopec.manualPrice !== undefined
-        ? "手動價格"
-        : `${sinoCityPrice.stale ? "上次快照" : "城市快照"} · ${sinoCityPrice.source === "fallback" ? "備用價" : "98# 快照"}`,
-      gdSinopecCity,
+      config.gdSinopec.manualPrice ? "manual" : sinoCityPrice.source,
+      gdPriceLabel(config.gdSinopec.manualPrice, sinoCityPrice.stale, sinoCityPrice.source, gdSinopecCity),
+      gdDisplayCity(config.gdSinopec.manualPrice, sinoCityPrice.source, gdSinopecCity),
+      gdPriceScope(config.gdSinopec.manualPrice, sinoCityPrice.source),
+      config.gdSinopec.manualPrice ? undefined : snapshot.updated_hkt,
+      config.gdSinopec.binding.mode,
+      gdSinopecBase * liters * fx - gdSinopecRmb * fx,
       [
-        { label: "城市", value: gdSinopecCity },
+        { label: "城市", value: CITY_LABELS[gdSinopecCity] },
         { label: "人民幣牌價", value: `¥${gdSinopecBase.toFixed(2)}/L` },
         {
           label: "每升立減",
@@ -371,4 +419,32 @@ export function calculateQuotes(
       ],
     ),
   ];
+}
+
+function gdDisplayCity(
+  override: GdPriceOverride | undefined,
+  source: "snapshot" | "fallback",
+  city: City,
+): City | undefined {
+  if (override) return override.scope === "city" ? city : undefined;
+  return source === "snapshot" ? city : undefined;
+}
+
+function gdPriceScope(
+  override: GdPriceOverride | undefined,
+  source: "snapshot" | "fallback",
+): PriceScope {
+  if (override) return override.scope;
+  return source === "snapshot" ? "city" : "fallback";
+}
+
+function gdPriceLabel(
+  override: GdPriceOverride | undefined,
+  stale: boolean,
+  source: "snapshot" | "fallback",
+  city: City,
+): string {
+  if (override) return override.label;
+  if (source === "fallback") return "內建備用價";
+  return `${CITY_LABELS[city]} ${stale ? "上次城市快照" : "城市快照"}`;
 }

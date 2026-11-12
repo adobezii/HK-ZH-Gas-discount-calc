@@ -61,3 +61,21 @@ def test_sinopec_payback_and_independent_toll():
     quotes = build_quotes(state)
     tolled = quote(quotes, "gd-sinopec")
     assert abs(tolled["total"] - ((11.65 - 2.0) * 60 * 1.08 + 142.5 * 2 * 1.08)) < 1e-5
+    assert abs(tolled["list_saving"] - 2.0 * 60 * 1.08) < 1e-6
+
+
+def test_province_api_does_not_claim_city_scope():
+    state = default_state()
+    state["date"] = "2026-11-12"
+    for key in ("gd_shell", "gd_sinopec"):
+        state[key]["manual_price"] = {
+            "value": 9.8,
+            "scope": "province",
+            "label": "廣東全省 API",
+        }
+    quotes = build_quotes(state)
+    for key in ("gd-shell", "gd-sinopec"):
+        item = quote(quotes, key)
+        assert item["city"] is None
+        assert item["price_scope"] == "province"
+        assert item["source_label"] == "廣東全省 API"

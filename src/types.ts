@@ -13,6 +13,12 @@ export type StationId =
   | "gd-sinopec";
 
 export type QuoteSource = "snapshot" | "api" | "manual" | "fallback";
+export type PriceScope =
+  | "city"
+  | "province"
+  | "manual"
+  | "fallback"
+  | "live";
 
 export interface ShellConfig {
   fuel: "premium" | "standard";
@@ -50,7 +56,7 @@ export interface GdShellConfig {
   binding: CityBinding;
   overrideCity: City;
   includeToll: boolean;
-  manualPrice?: number;
+  manualPrice?: GdPriceOverride;
 }
 
 export interface GdSinopecConfig {
@@ -59,11 +65,17 @@ export interface GdSinopecConfig {
   discountPerLiter: number;
   cardFee: number;
   includeToll: boolean;
-  manualPrice?: number;
+  manualPrice?: GdPriceOverride;
+}
+
+export interface GdPriceOverride {
+  value: number;
+  scope: "city" | "province" | "manual";
+  label: string;
 }
 
 export interface DashboardConfig {
-  schemaVersion: 1;
+  schemaVersion: 2;
   liters: number;
   fx: number;
   globalCity: City;
@@ -121,10 +133,14 @@ export interface QuoteResult {
   unitPriceHkd: number;
   totalHkd: number;
   grossHkd: number;
-  savingHkd: number;
   discountPerLiterHkd: number;
   source: QuoteSource;
   sourceLabel: string;
+  priceScope: PriceScope;
+  sourceUpdatedAt?: string;
+  cityMode?: "follow-global" | "override";
+  listSavingHkd: number;
+  savingVsWinnerHkd: number;
   isWinner: boolean;
   breakdown: Array<{ label: string; value: string }>;
 }

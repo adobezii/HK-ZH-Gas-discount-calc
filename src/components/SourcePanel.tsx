@@ -50,8 +50,22 @@ export function SourcePanel({ model }: Props) {
       } else {
         setConfig({
           ...config,
-          gdShell: { ...config.gdShell, manualPrice: result.price },
-          gdSinopec: { ...config.gdSinopec, manualPrice: result.price },
+          gdShell: {
+            ...config.gdShell,
+            manualPrice: {
+              value: result.price,
+              scope: "province",
+              label: "廣東全省 API",
+            },
+          },
+          gdSinopec: {
+            ...config.gdSinopec,
+            manualPrice: {
+              value: result.price,
+              scope: "province",
+              label: "廣東全省 API",
+            },
+          },
         });
       }
       setStatus({

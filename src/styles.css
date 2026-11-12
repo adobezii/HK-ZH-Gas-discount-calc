@@ -283,7 +283,7 @@ h1 {
 
 .decision {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(140px, 0.5fr));
+  grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(120px, 0.5fr));
   gap: 1rem;
   align-items: end;
   padding: 1rem;
@@ -326,11 +326,16 @@ h1 {
   padding: 0.9rem;
   overflow: hidden;
   border-top: 3px solid var(--station-accent);
+  box-shadow: none;
 }
 
 .station-card.winner {
   border-color: var(--success);
   box-shadow: 0 0 0 1px var(--success), var(--shadow);
+}
+
+.station-card:not(.winner) {
+  background: color-mix(in srgb, var(--surface) 94%, var(--surface-soft));
 }
 
 .station-card-head {
@@ -348,7 +353,60 @@ h1 {
 .station-card-head p {
   margin: 0;
   color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+  min-height: 1.9em;
+}
+
+.card-badges,
+.station-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.card-badges {
+  justify-content: flex-end;
+}
+
+.rank-badge {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
   font-size: 0.72rem;
+  font-weight: 800;
+  place-items: center;
+}
+
+.mode-badge,
+.scope-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.69rem;
+  line-height: 1;
+}
+
+.mode-badge.override {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  color: var(--accent);
+}
+
+.scope-badge.province {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--line));
+  color: var(--warning);
+}
+
+.scope-badge.fallback {
+  color: var(--danger);
 }
 
 .badge {
@@ -405,9 +463,26 @@ h1 {
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
-  font-size: 0.67rem;
+  font-size: 0.7rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.data-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: -0.35rem 0 0.9rem;
+}
+
+.data-status-chip {
+  padding: 0.28rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-soft) 80%, transparent);
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.25;
 }
 
 .details-grid {
@@ -479,6 +554,15 @@ h1 {
 
 .sticky-summary {
   display: none;
+}
+
+.mobile-rank-heading {
+  display: none;
+}
+
+.mobile-expand {
+  width: 100%;
+  margin-top: 0.65rem;
 }
 
 .sheet-layer {
@@ -624,6 +708,10 @@ h1 {
   .controls {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .decision {
+    grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(130px, 0.6fr));
+  }
 }
 
 @media (max-width: 700px) {
@@ -661,8 +749,32 @@ h1 {
     grid-column: 1 / -1;
   }
 
+  .decision-toll {
+    grid-column: 1 / -1;
+  }
+
   .station-sheet {
     max-height: 84vh;
+  }
+
+  .mobile-rank-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0.1rem 0 0.55rem;
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+
+  .mobile-rank-heading div {
+    display: grid;
+    gap: 0.1rem;
+  }
+
+  .mobile-rank-heading strong {
+    color: var(--text);
+    font-size: 0.9rem;
   }
 
   .sticky-summary {
@@ -671,16 +783,38 @@ h1 {
     right: 0.5rem;
     bottom: calc(0.5rem + env(safe-area-inset-bottom));
     left: 0.5rem;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(82px, auto));
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
+    gap: 0.4rem;
     padding: 0.65rem 0.8rem;
     border: 1px solid var(--line);
     border-radius: 0.85rem;
     background: color-mix(in srgb, var(--surface) 88%, transparent);
     box-shadow: var(--shadow);
     backdrop-filter: blur(18px) saturate(150%);
+  }
+
+  .sticky-summary > div {
+    display: grid;
+    gap: 0.05rem;
+    min-width: 0;
+  }
+
+  .sticky-summary > div:not(.sticky-summary-winner) {
+    text-align: right;
+  }
+
+  .sticky-summary span {
+    color: var(--muted);
+    font-size: 0.63rem;
+  }
+
+  .sticky-summary strong {
+    overflow: hidden;
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

@@ -23,7 +23,7 @@ export function localDateString(date = new Date()): string {
 
 export function createDefaultConfig(): DashboardConfig {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     liters: 60,
     fx: 1.08,
     globalCity: "zhuhai",

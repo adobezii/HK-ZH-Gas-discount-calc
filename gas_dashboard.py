@@ -94,6 +94,7 @@ def fallback_hk_data() -> dict[str, Any]:
     promotions = load_promotions()
     return {
         "loaded": False,
+        "updated_at": None,
         "shell": promotions["hkShell"]["prices"],
         "caltex": {
             "standard": promotions["caltex"]["standardPrice"],
@@ -172,6 +173,19 @@ def city_price(city: str, snapshot: dict[str, Any]) -> tuple[float, str, bool]:
     if entry and float(entry.get("p98", 0)) > 0:
         return float(entry["p98"]), "snapshot", bool(entry.get("stale"))
     return float(promotions["gdShell"]["fallback"]), "fallback", False
+
+
+def _gd_source_label(
+    manual: Any,
+    source: str,
+    city: str,
+    stale: bool,
+) -> str:
+    if isinstance(manual, dict):
+        return manual["label"]
+    if source == "fallback":
+        return "內建備用價"
+    return f"{CITY_LABELS[city]} · {'上次快照' if stale else '城市快照'}"
 
 
 def _caltex_card_coupon(
@@ -264,7 +278,12 @@ def build_quotes(
 
     shell_city = resolve_city(state["gd_shell"], state["global_city"])
     shell_city_price, shell_source, shell_stale = city_price(shell_city, city_data)
-    gd_shell_base = state["gd_shell"]["manual_price"] or shell_city_price
+    shell_manual = state["gd_shell"]["manual_price"]
+    gd_shell_base = (
+        shell_manual["value"]
+        if isinstance(shell_manual, dict)
+        else shell_manual or shell_city_price
+    )
     shell_discount_amount = gd_shell_discount(state["date"])
     gd_shell_final = (
         max(0.0, (gd_shell_base - shell_discount_amount) * liters) * fx
@@ -273,7 +292,12 @@ def build_quotes(
 
     sino_city = resolve_city(state["gd_sinopec"], state["global_city"])
     sino_city_price, sino_source, sino_stale = city_price(sino_city, city_data)
-    gd_sino_base = state["gd_sinopec"]["manual_price"] or sino_city_price
+    sino_manual = state["gd_sinopec"]["manual_price"]
+    gd_sino_base = (
+        sino_manual["value"]
+        if isinstance(sino_manual, dict)
+        else sino_manual or sino_city_price
+    )
     gd_sino_discount = float(state["gd_sinopec"]["discount_per_liter"])
     gd_sino_final = (
         max(0.0, (gd_sino_base - gd_sino_discount) * liters) * fx
@@ -305,6 +329,10 @@ def build_quotes(
         source: str,
         source_label: str,
         city: str | None,
+        price_scope: str,
+        source_updated_at: str | None,
+        city_mode: str | None,
+        list_saving: float,
         breakdown: list[dict[str, str]],
     ) -> dict[str, Any]:
         return {
@@ -319,12 +347,19 @@ def build_quotes(
             "saving": gross - total,
             "source": source,
             "source_label": source_label,
+            "price_scope": price_scope,
+            "source_updated_at": source_updated_at,
+            "city_mode": city_mode,
+            "list_saving": list_saving,
+            "saving_vs_winner": total - winner,
             "is_winner": abs(total - winner) < 0.005,
             "breakdown": breakdown,
         }
 
     hk_source = "api" if data.get("loaded") else "fallback"
     hk_label = "香港油價公開資料" if data.get("loaded") else "內建備用價"
+    hk_scope = "live" if data.get("loaded") else "fallback"
+    hk_updated = data.get("updated_at")
     return [
         quote(
             "hk-shell",
@@ -336,6 +371,10 @@ def build_quotes(
             hk_source,
             hk_label,
             None,
+            hk_scope,
+            hk_updated,
+            None,
+            shell_base * liters - shell_final,
             [
                 {"label": "牌價", "value": f"HK$ {shell_base:.2f}/L"},
                 {"label": "直減", "value": f"HK$ {shell_discount:.2f}/L"},
@@ -351,6 +390,10 @@ def build_quotes(
             hk_source,
             hk_label,
             None,
+            hk_scope,
+            hk_updated,
+            None,
+            caltex_base * liters - caltex_final,
             [
                 {"label": "牌價", "value": f"HK$ {caltex_base:.2f}/L"},
                 {"label": "卡折扣", "value": f"HK$ {card_discount:.2f}/L"},
@@ -367,6 +410,10 @@ def build_quotes(
             hk_source,
             hk_label,
             None,
+            hk_scope,
+            hk_updated,
+            None,
+            cnpc_base * liters - cnpc_final,
             [
                 {"label": "牌價", "value": f"HK$ {cnpc_base:.2f}/L"},
                 {"label": "純直減", "value": f"HK$ {cnpc_discount:.2f}/L"},
@@ -382,6 +429,10 @@ def build_quotes(
             hk_source,
             hk_label,
             None,
+            hk_scope,
+            hk_updated,
+            None,
+            sinohk_base * liters - sinohk_final,
             [
                 {"label": "牌價", "value": f"HK$ {sinohk_base:.2f}/L"},
                 {"label": "每升優惠", "value": f"HK$ {sinohk_discount:.2f}/L"},
@@ -394,9 +445,30 @@ def build_quotes(
             "#10b981",
             gd_shell_final,
             gd_shell_base * liters * fx,
-            state["gd_shell"]["manual_price"] is not None and "manual" or shell_source,
-            f"{CITY_LABELS[shell_city]} · {'上次快照' if shell_stale else '城市快照'}",
-            shell_city,
+            "manual" if shell_manual else shell_source,
+            _gd_source_label(
+                shell_manual, shell_source, shell_city, shell_stale
+            ),
+            (
+                shell_city
+                if (
+                    not shell_manual
+                    and shell_source == "snapshot"
+                )
+                or (
+                    isinstance(shell_manual, dict)
+                    and shell_manual.get("scope") == "city"
+                )
+                else None
+            ),
+            (
+                shell_manual.get("scope", "manual")
+                if isinstance(shell_manual, dict)
+                else ("city" if shell_source == "snapshot" else "fallback")
+            ),
+            None if shell_manual else city_data.get("updated_hkt"),
+            state["gd_shell"]["city_mode"],
+            gd_shell_base * liters * fx - max(0.0, (gd_shell_base - shell_discount_amount) * liters) * fx,
             [
                 {"label": "城市", "value": CITY_LABELS[shell_city]},
                 {"label": "人民幣牌價", "value": f"¥{gd_shell_base:.2f}/L"},
@@ -411,9 +483,30 @@ def build_quotes(
             "#3b82f6",
             gd_sino_final,
             gd_sino_base * liters * fx,
-            state["gd_sinopec"]["manual_price"] is not None and "manual" or sino_source,
-            f"{CITY_LABELS[sino_city]} · {'上次快照' if sino_stale else '城市快照'}",
-            sino_city,
+            "manual" if sino_manual else sino_source,
+            _gd_source_label(
+                sino_manual, sino_source, sino_city, sino_stale
+            ),
+            (
+                sino_city
+                if (
+                    not sino_manual
+                    and sino_source == "snapshot"
+                )
+                or (
+                    isinstance(sino_manual, dict)
+                    and sino_manual.get("scope") == "city"
+                )
+                else None
+            ),
+            (
+                sino_manual.get("scope", "manual")
+                if isinstance(sino_manual, dict)
+                else ("city" if sino_source == "snapshot" else "fallback")
+            ),
+            None if sino_manual else city_data.get("updated_hkt"),
+            state["gd_sinopec"]["city_mode"],
+            gd_sino_base * liters * fx - max(0.0, (gd_sino_base - gd_sino_discount) * liters) * fx,
             [
                 {"label": "城市", "value": CITY_LABELS[sino_city]},
                 {"label": "人民幣牌價", "value": f"¥{gd_sino_base:.2f}/L"},

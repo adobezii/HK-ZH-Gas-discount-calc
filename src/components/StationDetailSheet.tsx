@@ -783,16 +783,22 @@ export function StationDetailSheet({
                 currency="¥"
                 automated={config.gdShell.manualPrice === undefined}
                 value={
-                  config.gdShell.manualPrice ??
+                  config.gdShell.manualPrice?.value ??
                   Number(
-                    config.gdShell.manualPrice ??
-                      quote.breakdown.find((item) => item.label === "人民幣牌價")?.value.replace(/[^\d.]/g, ""),
+                    quote.breakdown.find((item) => item.label === "人民幣牌價")?.value.replace(/[^\d.]/g, ""),
                   )
                 }
                 onChange={(manualPrice) =>
                   update({
                     ...config,
-                    gdShell: { ...config.gdShell, manualPrice },
+                    gdShell: {
+                      ...config.gdShell,
+                      manualPrice: {
+                        value: manualPrice,
+                        scope: "manual",
+                        label: "手動價格",
+                      },
+                    },
                   })
                 }
                 onReset={() =>
@@ -803,7 +809,9 @@ export function StationDetailSheet({
                 }
               />
               <div className="warning full">
-                汽油价格网快照提供城市價；省級 API 只提供廣東全省價格。
+                {config.gdShell.manualPrice?.scope === "province"
+                  ? "此價格為廣東全省 API，不提供珠海／深圳／廣州細分。選擇城市只會影響下次套用城市快照。"
+                  : "汽油价格网快照提供城市價；省級 API 只提供廣東全省價格。"}
               </div>
             </>
           ) : null}
@@ -899,7 +907,7 @@ export function StationDetailSheet({
                 currency="¥"
                 automated={config.gdSinopec.manualPrice === undefined}
                 value={
-                  config.gdSinopec.manualPrice ??
+                  config.gdSinopec.manualPrice?.value ??
                   Number(
                     quote.breakdown.find((item) => item.label === "人民幣牌價")?.value.replace(/[^\d.]/g, ""),
                   )
@@ -907,7 +915,14 @@ export function StationDetailSheet({
                 onChange={(manualPrice) =>
                   update({
                     ...config,
-                    gdSinopec: { ...config.gdSinopec, manualPrice },
+                    gdSinopec: {
+                      ...config.gdSinopec,
+                      manualPrice: {
+                        value: manualPrice,
+                        scope: "manual",
+                        label: "手動價格",
+                      },
+                    },
                   })
                 }
                 onReset={() =>
@@ -918,8 +933,9 @@ export function StationDetailSheet({
                 }
               />
               <div className="warning full">
-                卡費不計入本次加油總額；回本升數只按卡費 ÷
-                每升立減計算，不攤分路費。
+                {config.gdSinopec.manualPrice?.scope === "province"
+                  ? "此價格為廣東全省 API，不提供城市細分。"
+                  : "卡費不計入本次加油總額；回本升數只按卡費 ÷ 每升立減計算，不攤分路費。"}
               </div>
             </>
           ) : null}

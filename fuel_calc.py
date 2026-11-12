@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from datetime import date
+from datetime import datetime
 from typing import Any
 
 import streamlit as st
@@ -60,6 +61,11 @@ st.markdown(
     .station-title { margin: .18rem 0; font-size: 1.03rem; font-weight: 750; }
     .station-price { margin-top: .8rem; font-size: 1.65rem; font-weight: 800; }
     .station-total { color: var(--muted); font-size: .78rem; }
+    .scope-chip {
+      display: inline-block; margin: .2rem .25rem 0 0; padding: .1rem .35rem;
+      border: 1px solid var(--line); border-radius: 999px;
+      color: var(--muted); font-size: .64rem;
+    }
     .winner-chip {
       display: inline-block; margin-left: .35rem; padding: .1rem .4rem;
       border: 1px solid var(--good); border-radius: 999px;
@@ -84,6 +90,7 @@ def get_hk_data() -> dict[str, Any]:
         prices, cards, coupons = fetch_hk_prices()
         return {
             "loaded": True,
+            "updated_at": datetime.now().astimezone().isoformat(),
             "shell": {
                 "premium": prices["premium"],
                 "standard": prices["standard"],
@@ -124,6 +131,7 @@ def manual_price_input(
     config: dict[str, Any],
     fallback: float,
     key: str,
+    structured: bool = False,
 ) -> None:
     enabled = st.checkbox(
         f"手動輸入{label}",
@@ -131,12 +139,23 @@ def manual_price_input(
         key=f"{key}_on",
     )
     if enabled:
-        config["manual_price"] = st.number_input(
+        current = config["manual_price"]
+        current_value = (
+            float(current["value"])
+            if isinstance(current, dict)
+            else float(current or fallback)
+        )
+        value = st.number_input(
             f"{label}（每升）",
             min_value=0.0,
-            value=float(config["manual_price"] or fallback),
+            value=current_value,
             step=0.05,
             key=f"{key}_value",
+        )
+        config["manual_price"] = (
+            {"value": value, "scope": "manual", "label": "手動價格"}
+            if structured
+            else value
         )
     else:
         config["manual_price"] = None
@@ -225,25 +244,41 @@ with st.sidebar:
                 price = fetch_cn_98_price_apihz(
                     credentials["id"], credentials["key"]
                 )
-                state["gd_shell"]["manual_price"] = price
-                state["gd_sinopec"]["manual_price"] = price
+                for key in ("gd_shell", "gd_sinopec"):
+                    state[key]["manual_price"] = {
+                        "value": price,
+                        "scope": "province",
+                        "label": "廣東全省 API",
+                    }
                 st.success(f"廣東全省 98#：¥{price:.2f}/L")
             elif source == "ShowAPI":
                 price = fetch_cn_98_price_showapi(credentials["key"])
-                state["gd_shell"]["manual_price"] = price
-                state["gd_sinopec"]["manual_price"] = price
+                for key in ("gd_shell", "gd_sinopec"):
+                    state[key]["manual_price"] = {
+                        "value": price,
+                        "scope": "province",
+                        "label": "廣東全省 API",
+                    }
                 st.success(f"廣東全省 98#：¥{price:.2f}/L")
             elif source == "起零數據":
                 price = fetch_cn_98_price(credentials["key"])
-                state["gd_shell"]["manual_price"] = price
-                state["gd_sinopec"]["manual_price"] = price
+                for key in ("gd_shell", "gd_sinopec"):
+                    state[key]["manual_price"] = {
+                        "value": price,
+                        "scope": "province",
+                        "label": "廣東全省 API",
+                    }
                 st.success(f"廣東全省 98#：¥{price:.2f}/L")
             else:
                 price = fetch_cn_98_price_mxnzp(
                     credentials["id"], credentials["key"]
                 )
-                state["gd_shell"]["manual_price"] = price
-                state["gd_sinopec"]["manual_price"] = price
+                for key in ("gd_shell", "gd_sinopec"):
+                    state[key]["manual_price"] = {
+                        "value": price,
+                        "scope": "province",
+                        "label": "廣東全省 API",
+                    }
                 st.success(f"廣東全省 98#：¥{price:.2f}/L")
         except Exception as exc:
             st.error(f"抓取失敗：{exc}")
@@ -261,6 +296,24 @@ st.caption(
     f"{state['date']}｜{state['liters']:.1f}L｜"
     f"1¥ = HK${state['fx']:.4f}｜全域城市：{CITY_LABELS[state['global_city']]}"
 )
+hk_status = (
+    f"香港公開價 {datetime.fromisoformat(hk_data['updated_at']).strftime('%H:%M')}"
+    if hk_data.get("loaded") and hk_data.get("updated_at")
+    else "香港備用價"
+)
+gd_scopes = sorted({item["price_scope"] for item in quotes if item["city_mode"]})
+scope_names = {
+    "city": "城市快照",
+    "province": "廣東全省 API",
+    "manual": "手動價格",
+    "fallback": "備用價",
+}
+scope_text = " · ".join(scope_names.get(scope, scope) for scope in gd_scopes)
+st.markdown(
+    f'<div class="status-line">{hk_status}　·　城市快照 {snapshot.get("updated_hkt", "—")}'
+    f'　·　大陸資料 {scope_text or "未載入"}</div>',
+    unsafe_allow_html=True,
+)
 
 metric_cols = st.columns(4)
 metric_cols[0].metric(
@@ -276,25 +329,43 @@ metric_cols[3].metric(
     "香港資料", "即時／公開" if hk_data.get("loaded") else "內建備用"
 )
 
-st.subheader("六站結果")
-for start in (0, 3):
+ranked_quotes = sorted(quotes, key=lambda item: item["total"])
+show_all = st.toggle("查看其餘三站", value=False)
+display_quotes = ranked_quotes if show_all else ranked_quotes[:3]
+
+st.subheader("六站結果" if show_all else "最抵三強")
+for start in range(0, len(display_quotes), 3):
     cols = st.columns(3)
-    for column, item in zip(cols, quotes[start : start + 3]):
+    for column, item in zip(cols, display_quotes[start : start + 3]):
         with column:
+            rank = ranked_quotes.index(item) + 1
             winner_class = " winner" if item["is_winner"] else ""
             winner_chip = (
                 '<span class="winner-chip">最低</span>'
                 if item["is_winner"]
                 else ""
             )
-            city = (
-                f" · {CITY_LABELS[item['city']]}" if item["city"] else ""
-            )
+            city = f" · {CITY_LABELS[item['city']]}" if item["city"] else ""
+            mode = ""
+            if item["city_mode"]:
+                mode = (
+                    f'<span class="scope-chip">'
+                    f'{"已自訂" if item["city_mode"] == "override" else "跟隨全域"}'
+                    f"{city}</span>"
+                )
+            scope = {
+                "city": "城市快照",
+                "province": "廣東全省 API",
+                "manual": "手動價格",
+                "fallback": "備用價",
+                "live": "香港公開價",
+            }.get(item["price_scope"], item["price_scope"])
             st.markdown(
                 f"""
                 <div class="station-card{winner_class}" style="--station-accent:{item['accent']}">
-                  <div class="station-kicker">{item['source_label']}{city}</div>
+                  <div class="station-kicker">{rank}. {item['source_label']}</div>
                   <div class="station-title">{item['name']}{winner_chip}</div>
+                  <div>{mode}<span class="scope-chip">{scope}</span></div>
                   <div class="station-price">HK$ {item['unit_price']:.2f}<small> / L</small></div>
                   <div class="station-total">本次總額 HK$ {item['total']:.2f}</div>
                 </div>
@@ -486,7 +557,10 @@ with st.expander("廣東 Shell"):
         gd_shell,
         float(city_entry.get("p98", 11.65)),
         "st_gd_shell_price",
+        structured=True,
     )
+    if isinstance(gd_shell["manual_price"], dict) and gd_shell["manual_price"].get("scope") == "province":
+        st.warning("此價格為廣東全省 API，不提供珠海／深圳／廣州細分。")
 
 with st.expander("廣東中石化愛跑98"):
     gd_sino = state["gd_sinopec"]
@@ -529,7 +603,10 @@ with st.expander("廣東中石化愛跑98"):
         gd_sino,
         float(city_entry.get("p98", 11.65)),
         "st_gd_sinopec_price",
+        structured=True,
     )
+    if isinstance(gd_sino["manual_price"], dict) and gd_sino["manual_price"].get("scope") == "province":
+        st.warning("此價格為廣東全省 API，不提供城市細分。")
     payback = (
         gd_sino["card_fee"] / gd_sino["discount_per_liter"]
         if gd_sino["discount_per_liter"] > 0
