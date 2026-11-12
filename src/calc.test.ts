@@ -3,10 +3,15 @@ import {
   calculateQuotes,
   cnpcDirectDiscount,
   getGdShellDiscount,
+  gdShellDateRuleLabel,
+  hkSinopecDateRuleLabel,
   hkSinopecDiscount,
+  cnpcDateRuleLabel,
+  shellDateRuleLabel,
   sortQuotesByPrice,
 } from "./calc";
 import { createDefaultConfig } from "./data";
+import { withCalibratedDate } from "./data";
 import { fallbackLivePrices } from "./livePrices";
 import type { CityPriceSnapshot, DashboardConfig } from "./types";
 
@@ -164,5 +169,31 @@ describe("quote costs", () => {
       "hk-cnpc",
       "hk-sinopec",
     ]);
+  });
+
+  it("日期規則標籤會跟隨選定日期", () => {
+    expect(shellDateRuleLabel("2026-11-12", "auto")).toBe("平日日期優惠");
+    expect(shellDateRuleLabel("2026-11-18", "auto")).toBe("星期三日期優惠");
+    expect(cnpcDateRuleLabel("2026-11-18", undefined)).toBe("星期三直減");
+    expect(cnpcDateRuleLabel("2026-11-20", undefined)).toBe("週末直減待輸入");
+    expect(
+      hkSinopecDateRuleLabel("2026-11-21", {
+        ...config().hkSinopec,
+        fuel: "premium",
+      }),
+    ).toBe("週末日期優惠");
+    expect(gdShellDateRuleLabel("2026-11-18")).toBe("日期優惠取較大");
+  });
+
+  it("指定新日期會清除日期折扣覆寫並恢復 Shell 自動日別", () => {
+    const base = config();
+    base.hkShell.offerDay = "weekend";
+    base.hkCnpc.discountOverride = 9;
+    base.hkSinopec.discountOverride = 10;
+    const calibrated = withCalibratedDate(base, "2026-11-18");
+    expect(calibrated.date).toBe("2026-11-18");
+    expect(calibrated.hkShell.offerDay).toBe("auto");
+    expect(calibrated.hkCnpc.discountOverride).toBeUndefined();
+    expect(calibrated.hkSinopec.discountOverride).toBeUndefined();
   });
 });

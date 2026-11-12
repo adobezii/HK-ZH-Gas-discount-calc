@@ -38,6 +38,8 @@ export function DashboardPage({ model }: Props) {
           </p>
         </div>
         <div className="inline-actions">
+          <span className="badge view-mode-desktop">電腦版 · 六站總覽</span>
+          <span className="badge view-mode-mobile">手機版 · 最抵三強</span>
           <span className="badge">資料日期 {model.config.date}</span>
           <Link className="button subtle pressable" to="/classic">
             經典比較

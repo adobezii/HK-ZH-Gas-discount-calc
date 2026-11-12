@@ -14,20 +14,35 @@ export const fallbackCards = promotions.caltex.cards as CaltexCard[];
 export const fallbackCoupons = promotions.caltex.coupons as CaltexCoupon[];
 
 export function localDateString(date = new Date()): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Hong_Kong",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+export function withCalibratedDate(
+  config: DashboardConfig,
+  date: string,
+): DashboardConfig {
+  return {
+    ...config,
+    date,
+    hkShell: { ...config.hkShell, offerDay: "auto" },
+    hkCnpc: { ...config.hkCnpc, discountOverride: undefined },
+    hkSinopec: { ...config.hkSinopec, discountOverride: undefined },
+  };
 }
 
 export function createDefaultConfig(): DashboardConfig {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     liters: 60,
     fx: 1.08,
     globalCity: "zhuhai",
     date: localDateString(),
+    dateMode: "auto",
     hkShell: {
       fuel: "premium",
       offerDay: "auto",

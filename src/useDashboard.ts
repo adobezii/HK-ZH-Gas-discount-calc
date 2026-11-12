@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { calculateQuotes } from "./calc";
-import { citySnapshot, createDefaultConfig } from "./data";
+import {
+  citySnapshot,
+  createDefaultConfig,
+  localDateString,
+  withCalibratedDate,
+} from "./data";
 import {
   fallbackLivePrices,
   fetchLivePrices,
@@ -18,6 +23,28 @@ export function useDashboard() {
   useEffect(() => {
     saveConfig(config);
   }, [config]);
+
+  useEffect(() => {
+    if (config.dateMode !== "auto") return;
+    const syncDate = () => {
+      const today = localDateString();
+      setConfig((current) =>
+        current.dateMode === "auto" && current.date !== today
+          ? withCalibratedDate(current, today)
+          : current,
+      );
+    };
+    syncDate();
+    const timer = window.setInterval(syncDate, 60_000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") syncDate();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [config.dateMode]);
 
   const refreshLive = async () => {
     setStatus("loading");
@@ -50,6 +77,18 @@ export function useDashboard() {
     quotes,
     best,
     refreshLive,
+    setManualDate: (date: string) => {
+      setConfig((current) => ({
+        ...withCalibratedDate(current, date),
+        dateMode: "manual",
+      }));
+    },
+    useAutomaticDate: () => {
+      setConfig((current) => ({
+        ...withCalibratedDate(current, localDateString()),
+        dateMode: "auto",
+      }));
+    },
     resetAll: () => {
       clearConfig();
       setConfig(createDefaultConfig());

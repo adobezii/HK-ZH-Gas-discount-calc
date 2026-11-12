@@ -5,9 +5,10 @@ from __future__ import annotations
 
 import copy
 import json
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
 CITY_LABELS = {
@@ -37,7 +38,9 @@ def load_city_snapshot() -> dict[str, Any]:
 
 def default_state(today: date | None = None) -> dict[str, Any]:
     promotions = load_promotions()
-    current = (today or date.today()).isoformat()
+    current = (
+        today or datetime.now(ZoneInfo("Asia/Hong_Kong")).date()
+    ).isoformat()
     cards = promotions["gdSinopec"]["cards"]
     card_fee = next((card["fee"] for card in cards if card["id"] == "two-year"), cards[0]["fee"])
     return {
@@ -45,6 +48,8 @@ def default_state(today: date | None = None) -> dict[str, Any]:
         "fx": 1.08,
         "global_city": "zhuhai",
         "date": current,
+        "date_mode": "auto",
+        "last_calibrated_date": current,
         "hk_shell": {
             "fuel": "premium",
             "offer_day": "auto",
@@ -209,6 +214,67 @@ def _caltex_card_coupon(
     return card, selected
 
 
+def shell_date_rule_label(iso: str, requested: str) -> str:
+    if requested != "auto":
+        return "手動指定優惠日"
+    weekday = _weekday(iso)
+    if weekday == 2:
+        return "星期三日期優惠"
+    if weekday in (5, 6):
+        return "週末日期優惠"
+    return "平日日期優惠"
+
+
+def cnpc_date_rule_label(iso: str, override: Any) -> str:
+    if override is not None:
+        return "手動直減"
+    promotions = load_promotions()
+    rule = promotions["hkCnpc"]
+    if not (rule["start"] <= iso <= rule["end"]):
+        return "推廣期外"
+    weekday = _weekday(iso)
+    if weekday == 2:
+        return "星期三直減"
+    if weekday in (0, 1, 3):
+        return "一／二／四直減"
+    return "週末直減待輸入"
+
+
+def hk_sinopec_date_rule_label(iso: str, config: dict[str, Any]) -> str:
+    if config.get("discount_override") is not None:
+        return "手動每升優惠"
+    if not config["member"]:
+        return "會員條件未符合"
+    promotions = load_promotions()
+    rule = promotions["hkSinopec"]
+    if not (rule["start"] <= iso <= rule["end"]):
+        return "推廣期外"
+    weekday = _weekday(iso)
+    if config["fuel"] == "standard":
+        return "週末汽油優惠" if weekday in (5, 6) else "平日汽油優惠"
+    if weekday == 2:
+        return "星期三升級優惠" if iso <= rule["wednesdayEnd"] else "星期三一般優惠"
+    if weekday in (0, 3):
+        return "一／四日期優惠"
+    if weekday in (1, 4):
+        return "二／五日期優惠"
+    return "週末日期優惠"
+
+
+def gd_shell_date_rule_label(iso: str) -> str:
+    day = int(iso[-2:])
+    weekday = _weekday(iso)
+    hit_8 = day in (8, 18, 28)
+    hit_wed_sat = weekday in (2, 5)
+    if hit_8 and hit_wed_sat:
+        return "日期優惠取較大"
+    if hit_8:
+        return "8／18／28 日期優惠"
+    if hit_wed_sat:
+        return "週三／六日期優惠"
+    return "日期無額外優惠"
+
+
 def build_quotes(
     state: dict[str, Any],
     hk_data: dict[str, Any] | None = None,
@@ -334,6 +400,7 @@ def build_quotes(
         city_mode: str | None,
         list_saving: float,
         breakdown: list[dict[str, str]],
+        date_rule_label: str | None = None,
     ) -> dict[str, Any]:
         return {
             "station_id": station_id,
@@ -352,6 +419,7 @@ def build_quotes(
             "city_mode": city_mode,
             "list_saving": list_saving,
             "saving_vs_winner": total - winner,
+            "date_rule_label": date_rule_label,
             "is_winner": abs(total - winner) < 0.005,
             "breakdown": breakdown,
         }
@@ -379,6 +447,7 @@ def build_quotes(
                 {"label": "牌價", "value": f"HK$ {shell_base:.2f}/L"},
                 {"label": "直減", "value": f"HK$ {shell_discount:.2f}/L"},
             ],
+            shell_date_rule_label(state["date"], shell["offer_day"]),
         ),
         quote(
             "hk-caltex",
@@ -418,6 +487,7 @@ def build_quotes(
                 {"label": "牌價", "value": f"HK$ {cnpc_base:.2f}/L"},
                 {"label": "純直減", "value": f"HK$ {cnpc_discount:.2f}/L"},
             ],
+            cnpc_date_rule_label(state["date"], cnpc["discount_override"]),
         ),
         quote(
             "hk-sinopec",
@@ -437,6 +507,7 @@ def build_quotes(
                 {"label": "牌價", "value": f"HK$ {sinohk_base:.2f}/L"},
                 {"label": "每升優惠", "value": f"HK$ {sinohk_discount:.2f}/L"},
             ],
+            hk_sinopec_date_rule_label(state["date"], sinohk),
         ),
         quote(
             "gd-shell",
@@ -475,6 +546,7 @@ def build_quotes(
                 {"label": "每升立減", "value": f"¥{shell_discount_amount:.2f}/L"},
                 {"label": "過境路費", "value": f"HK$ {toll_hkd:.0f}" if state["gd_shell"]["include_toll"] else "未計"},
             ],
+            gd_shell_date_rule_label(state["date"]),
         ),
         quote(
             "gd-sinopec",

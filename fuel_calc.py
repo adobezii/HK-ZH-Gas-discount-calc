@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import date
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Any
 
 import streamlit as st
@@ -191,10 +192,34 @@ with st.sidebar:
     )
     state["global_city"] = selected_city
 
-    selected_date = st.date_input(
-        "加油日期", value=date.fromisoformat(state["date"])
+    automatic_date = st.checkbox(
+        "自動按今日校準優惠",
+        value=state.get("date_mode", "auto") == "auto",
+        key="st_auto_date",
     )
-    state["date"] = selected_date.isoformat()
+    today_hk = datetime.now(ZoneInfo("Asia/Hong_Kong")).date()
+    today_iso = today_hk.isoformat()
+    if automatic_date:
+        if (
+            state.get("date_mode") != "auto"
+            or state.get("last_calibrated_date") != today_iso
+        ):
+            state["date"] = today_iso
+            state["hk_shell"]["offer_day"] = "auto"
+            state["hk_cnpc"]["discount_override"] = None
+            state["hk_sinopec"]["discount_override"] = None
+            state["last_calibrated_date"] = today_iso
+        selected_date = st.date_input(
+            "加油日期（自動今日）",
+            value=today_hk,
+            disabled=True,
+        )
+    else:
+        selected_date = st.date_input(
+            "加油日期", value=date.fromisoformat(state["date"])
+        )
+        state["date"] = selected_date.isoformat()
+    state["date_mode"] = "auto" if automatic_date else "manual"
     state["liters"] = st.number_input(
         "入油升數（L）",
         min_value=1.0,
@@ -294,7 +319,8 @@ winner = min(quotes, key=lambda item: item["total"])
 st.title("粵港六站油價及油卡比價")
 st.caption(
     f"{state['date']}｜{state['liters']:.1f}L｜"
-    f"1¥ = HK${state['fx']:.4f}｜全域城市：{CITY_LABELS[state['global_city']]}"
+    f"1¥ = HK${state['fx']:.4f}｜全域城市：{CITY_LABELS[state['global_city']]}｜"
+    f"日期校準：{'自動今日' if state['date_mode'] == 'auto' else '手動指定'}"
 )
 hk_status = (
     f"香港公開價 {datetime.fromisoformat(hk_data['updated_at']).strftime('%H:%M')}"
@@ -360,12 +386,17 @@ for start in range(0, len(display_quotes), 3):
                 "fallback": "備用價",
                 "live": "香港公開價",
             }.get(item["price_scope"], item["price_scope"])
+            date_rule = (
+                f'<span class="scope-chip">{item["date_rule_label"]}</span>'
+                if item.get("date_rule_label")
+                else ""
+            )
             st.markdown(
                 f"""
                 <div class="station-card{winner_class}" style="--station-accent:{item['accent']}">
                   <div class="station-kicker">{rank}. {item['source_label']}</div>
                   <div class="station-title">{item['name']}{winner_chip}</div>
-                  <div>{mode}<span class="scope-chip">{scope}</span></div>
+                  <div>{mode}<span class="scope-chip">{scope}</span>{date_rule}</div>
                   <div class="station-price">HK$ {item['unit_price']:.2f}<small> / L</small></div>
                   <div class="station-total">本次總額 HK$ {item['total']:.2f}</div>
                 </div>

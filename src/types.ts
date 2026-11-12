@@ -75,11 +75,12 @@ export interface GdPriceOverride {
 }
 
 export interface DashboardConfig {
-  schemaVersion: 2;
+  schemaVersion: 3;
   liters: number;
   fx: number;
   globalCity: City;
   date: string;
+  dateMode: "auto" | "manual";
   hkShell: ShellConfig;
   hkCaltex: CaltexConfig;
   hkCnpc: CnpcConfig;
@@ -141,6 +142,7 @@ export interface QuoteResult {
   cityMode?: "follow-global" | "override";
   listSavingHkd: number;
   savingVsWinnerHkd: number;
+  dateRuleLabel?: string;
   isWinner: boolean;
   breakdown: Array<{ label: string; value: string }>;
 }

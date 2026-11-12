@@ -87,6 +87,65 @@ export function getGdShellDiscount(date: string): number {
   return 0;
 }
 
+export function shellDateRuleLabel(
+  date: string,
+  requested: DashboardConfig["hkShell"]["offerDay"],
+): string {
+  if (requested !== "auto") return "手動指定優惠日";
+  const selected = shellOfferDay(date, requested);
+  if (selected === "wed") return "星期三日期優惠";
+  if (selected === "weekend") return "週末日期優惠";
+  return "平日日期優惠";
+}
+
+export function cnpcDateRuleLabel(
+  date: string,
+  override: number | undefined,
+): string {
+  if (override !== undefined) return "手動直減";
+  if (date < promotions.hkCnpc.start || date > promotions.hkCnpc.end) {
+    return "推廣期外";
+  }
+  const weekday = dayOfWeek(date);
+  if (weekday === 3) return "星期三直減";
+  if ([1, 2, 4].includes(weekday)) return "一／二／四直減";
+  return "週末直減待輸入";
+}
+
+export function hkSinopecDateRuleLabel(
+  date: string,
+  config: DashboardConfig["hkSinopec"],
+): string {
+  if (config.discountOverride !== undefined) return "手動每升優惠";
+  if (!config.member) return "會員條件未符合";
+  if (date < promotions.hkSinopec.start || date > promotions.hkSinopec.end) {
+    return "推廣期外";
+  }
+  const weekday = dayOfWeek(date);
+  if (config.fuel === "standard") {
+    return weekday === 0 || weekday === 6 ? "週末汽油優惠" : "平日汽油優惠";
+  }
+  if (weekday === 3) {
+    return date <= promotions.hkSinopec.wednesdayEnd
+      ? "星期三升級優惠"
+      : "星期三一般優惠";
+  }
+  if (weekday === 1 || weekday === 4) return "一／四日期優惠";
+  if (weekday === 2 || weekday === 5) return "二／五日期優惠";
+  return "週末日期優惠";
+}
+
+export function gdShellDateRuleLabel(date: string): string {
+  const day = Number(date.slice(-2));
+  const weekday = dayOfWeek(date);
+  const hit8 = [8, 18, 28].includes(day);
+  const hitWedSat = weekday === 3 || weekday === 6;
+  if (hit8 && hitWedSat) return "日期優惠取較大";
+  if (hit8) return "8／18／28 日期優惠";
+  if (hitWedSat) return "週三／六日期優惠";
+  return "日期無額外優惠";
+}
+
 export function cityPrice(
   city: City,
   snapshot: CityPriceSnapshot,
@@ -271,7 +330,7 @@ export function calculateQuotes(
     breakdown,
   });
 
-  return [
+  const results: QuoteResult[] = [
     make(
       "hk-shell",
       "香港 Shell",
@@ -419,6 +478,17 @@ export function calculateQuotes(
       ],
     ),
   ];
+
+  const dateRules: Partial<Record<StationId, string>> = {
+    "hk-shell": shellDateRuleLabel(config.date, config.hkShell.offerDay),
+    "hk-cnpc": cnpcDateRuleLabel(config.date, config.hkCnpc.discountOverride),
+    "hk-sinopec": hkSinopecDateRuleLabel(config.date, config.hkSinopec),
+    "gd-shell": gdShellDateRuleLabel(config.date),
+  };
+  return results.map((quote) => ({
+    ...quote,
+    dateRuleLabel: dateRules[quote.stationId],
+  }));
 }
 
 function gdDisplayCity(

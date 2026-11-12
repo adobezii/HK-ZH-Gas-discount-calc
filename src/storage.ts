@@ -17,7 +17,7 @@ export function loadConfig(): DashboardConfig {
       Partial<DashboardConfig>,
       "schemaVersion"
     > & { schemaVersion?: number };
-    if (parsed.schemaVersion !== 1 && parsed.schemaVersion !== 2) return defaults;
+    if (![1, 2, 3].includes(parsed.schemaVersion ?? 0)) return defaults;
     const migrateManualPrice = (
       value: number | GdPriceOverride | undefined,
     ): GdPriceOverride | undefined => {
@@ -44,7 +44,8 @@ export function loadConfig(): DashboardConfig {
     return {
       ...defaults,
       ...parsed,
-      schemaVersion: 2,
+      schemaVersion: 3,
+      dateMode: parsed.dateMode ?? "auto",
       hkShell: { ...defaults.hkShell, ...parsed.hkShell },
       hkCaltex: { ...defaults.hkCaltex, ...parsed.hkCaltex },
       hkCnpc: { ...defaults.hkCnpc, ...parsed.hkCnpc },

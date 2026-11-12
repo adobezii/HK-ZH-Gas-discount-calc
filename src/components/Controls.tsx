@@ -62,15 +62,30 @@ export function Controls({ model }: Props) {
           ))}
         </select>
       </label>
-      <label className="field">
-        <span>加油日期</span>
+      <div className="field">
+        <div className="field-heading">
+          <label htmlFor="fuel-date">加油日期</label>
+          <label className="auto-date-toggle">
+            <input
+              type="checkbox"
+              checked={config.dateMode === "auto"}
+              onChange={(event) =>
+                event.target.checked
+                  ? model.useAutomaticDate()
+                  : model.setManualDate(config.date)
+              }
+            />
+            自動今日
+          </label>
+        </div>
         <input
+          id="fuel-date"
           className="input"
           type="date"
           value={config.date}
-          onChange={(event) => setConfig({ ...config, date: event.target.value })}
+          onChange={(event) => model.setManualDate(event.target.value)}
         />
-      </label>
+      </div>
       <div className="inline-actions">
         <button
           className="button subtle pressable"

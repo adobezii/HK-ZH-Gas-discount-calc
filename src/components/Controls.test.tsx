@@ -24,6 +24,8 @@ function model(): DashboardModel {
     quotes: [],
     best: {} as DashboardModel["best"],
     refreshLive: vi.fn(),
+    setManualDate: vi.fn(),
+    useAutomaticDate: vi.fn(),
     resetAll: vi.fn(),
   };
 }
@@ -44,5 +46,14 @@ describe("global controls", () => {
     render(<Controls model={model()} />);
     expect(screen.getByLabelText("加油日期")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重設" })).toBeInTheDocument();
+  });
+
+  it("取消自動今日會切換為手動日期", async () => {
+    const value = model();
+    render(<Controls model={value} />);
+    const automatic = screen.getByRole("checkbox", { name: "自動今日" });
+    expect(automatic).toBeChecked();
+    await userEvent.click(automatic);
+    expect(value.setManualDate).toHaveBeenCalledWith(value.config.date);
   });
 });

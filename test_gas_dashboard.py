@@ -6,9 +6,13 @@ from gas_dashboard import (
     build_quotes,
     cnpc_direct_discount,
     default_state,
+    cnpc_date_rule_label,
     gd_shell_discount,
+    gd_shell_date_rule_label,
+    hk_sinopec_date_rule_label,
     hk_sinopec_discount,
     load_city_snapshot,
+    shell_date_rule_label,
 )
 
 
@@ -45,6 +49,13 @@ def test_discount_rules():
     assert hk_sinopec_discount("2026-11-21", "standard", True) == 6.61
     assert gd_shell_discount("2026-11-18") == 1.88
     assert gd_shell_discount("2026-11-21") == 0.98
+    assert shell_date_rule_label("2026-11-12", "auto") == "平日日期優惠"
+    assert cnpc_date_rule_label("2026-11-18", None) == "星期三直減"
+    assert hk_sinopec_date_rule_label(
+        "2026-11-21",
+        {"discount_override": None, "member": True, "fuel": "premium"},
+    ) == "週末日期優惠"
+    assert gd_shell_date_rule_label("2026-11-18") == "日期優惠取較大"
 
 
 def test_sinopec_payback_and_independent_toll():
@@ -79,3 +90,7 @@ def test_province_api_does_not_claim_city_scope():
         assert item["city"] is None
         assert item["price_scope"] == "province"
         assert item["source_label"] == "廣東全省 API"
+
+
+def test_date_mode_defaults_to_automatic():
+    assert default_state()["date_mode"] == "auto"

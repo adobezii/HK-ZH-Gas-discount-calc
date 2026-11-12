@@ -52,6 +52,9 @@ export function DataStatusBar({ model }: Props) {
       </span>
       <span className="data-status-chip">全域城市 {cityText}</span>
       <span className="data-status-chip">大陸資料 {scopeText}</span>
+      <span className="data-status-chip">
+        日期校準 {model.config.dateMode === "auto" ? "自動今日" : "手動指定"}
+      </span>
     </section>
   );
 }

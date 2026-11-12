@@ -130,6 +130,9 @@ export function StationMatrix({ quotes, onSelect }: Props) {
             <span className={`scope-badge ${quote.priceScope}`}>
               {sourceBadge(quote)}
             </span>
+            {quote.dateRuleLabel ? (
+              <span className="date-rule-badge">{quote.dateRuleLabel}</span>
+            ) : null}
           </div>
 
           <div className="station-numbers">

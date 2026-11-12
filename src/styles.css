@@ -231,6 +231,35 @@ h1 {
   font-weight: 600;
 }
 
+.field-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.field-heading > label:first-child {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.auto-date-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.auto-date-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
 .input,
 .select {
   width: 100%;
@@ -329,6 +358,13 @@ h1 {
   box-shadow: none;
 }
 
+@media (hover: hover) {
+  .station-card:hover {
+    border-color: color-mix(in srgb, var(--station-accent) 55%, var(--line));
+    background: var(--surface);
+  }
+}
+
 .station-card.winner {
   border-color: var(--success);
   box-shadow: 0 0 0 1px var(--success), var(--shadow);
@@ -383,7 +419,8 @@ h1 {
 }
 
 .mode-badge,
-.scope-badge {
+.scope-badge,
+.date-rule-badge {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
@@ -393,6 +430,11 @@ h1 {
   color: var(--muted);
   font-size: 0.69rem;
   line-height: 1;
+}
+
+.date-rule-badge {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  color: var(--text);
 }
 
 .mode-badge.override {
@@ -570,7 +612,8 @@ h1 {
   z-index: 80;
   inset: 0;
   display: grid;
-  place-items: end center;
+  padding: 1rem;
+  place-items: center;
 }
 
 .sheet-backdrop {
@@ -588,18 +631,25 @@ h1 {
   overflow: auto;
   padding: 1rem;
   border: 1px solid var(--line);
-  border-bottom: 0;
-  border-radius: 1.25rem 1.25rem 0 0;
+  border-radius: 1.25rem;
   background: var(--surface);
   box-shadow: 0 -24px 70px rgb(0 0 0 / 0.32);
 }
 
 .sheet-handle {
-  display: grid;
+  display: none;
   min-height: 44px;
   cursor: grab;
   touch-action: none;
   place-items: center;
+}
+
+.view-mode-desktop {
+  display: inline-flex;
+}
+
+.view-mode-mobile {
+  display: none;
 }
 
 .sheet-handle span {
@@ -755,6 +805,25 @@ h1 {
 
   .station-sheet {
     max-height: 84vh;
+    border-bottom: 0;
+    border-radius: 1.25rem 1.25rem 0 0;
+  }
+
+  .sheet-layer {
+    padding: 0;
+    place-items: end center;
+  }
+
+  .sheet-handle {
+    display: grid;
+  }
+
+  .view-mode-desktop {
+    display: none;
+  }
+
+  .view-mode-mobile {
+    display: inline-flex;
   }
 
   .mobile-rank-heading {
