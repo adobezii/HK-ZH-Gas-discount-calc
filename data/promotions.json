@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "toll": {
+    "rmbPerCrossing": 142.5,
+    "crossings": 2
+  },
+  "hkShell": {
+    "prices": {
+      "premium": 36.32,
+      "standard": 34.52
+    },
+    "offers": {
+      "premium": {
+        "wed": { "cash": 14.4, "allIn": 14.8 },
+        "weekend": { "cash": 13.6, "allIn": 15.4 },
+        "weekday": { "cash": 12.6, "allIn": 14.8 }
+      },
+      "standard": {
+        "wed": { "cash": 12.6, "allIn": 13.0 },
+        "weekend": { "cash": 13.6, "allIn": 14.0 },
+        "weekday": { "cash": 12.6, "allIn": 13.0 }
+      }
+    }
+  },
+  "caltex": {
+    "standardPrice": 34.72,
+    "premiumPrice": 36.52,
+    "cards": [
+      {
+        "id": "caltex-personal-StarCard",
+        "type": "starCard",
+        "description": "私人能源卡：黃金減$12 / 白金減$13",
+        "standardDiscount": 12.0,
+        "premiumDiscount": 13.0
+      },
+      {
+        "id": "caltex-personal-StarCard2",
+        "type": "starCard",
+        "description": "私人能源卡：黃金減$12.5 / 白金減$13",
+        "standardDiscount": 12.5,
+        "premiumDiscount": 13.0
+      },
+      {
+        "id": "starCard-others",
+        "type": "starCard",
+        "description": "其他私人能源卡",
+        "standardDiscount": 0.0,
+        "premiumDiscount": 0.0
+      }
+    ],
+    "coupons": [
+      {
+        "id": "starCard-350-50",
+        "description": "私人能源卡 - 入滿$350減$50",
+        "spend": 350.0,
+        "discount": 50.0,
+        "validCardType": "starCard",
+        "validFor": ["standard", "premium"]
+      }
+    ]
+  },
+  "hkCnpc": {
+    "price": 36.52,
+    "start": "2026-11-10",
+    "end": "2026-11-30",
+    "minimumSpend": 300,
+    "direct": {
+      "monThu": 12.6,
+      "tue": 12.6,
+      "wed": 13.9,
+      "weekend": 0
+    }
+  },
+  "hkSinopec": {
+    "prices": {
+      "premium": 36.52,
+      "standard": 34.72
+    },
+    "start": "2026-11-01",
+    "end": "2026-11-30",
+    "wednesdayEnd": "2026-11-25",
+    "premium": {
+      "monThu": { "direct": 7.8, "allIn": 8.19 },
+      "tueFri": { "direct": 12.3, "allIn": 13.3 },
+      "wed": { "direct": 13.51, "allIn": 15.1 },
+      "weekend": { "direct": 13.83, "allIn": 15.4 }
+    },
+    "standard": {
+      "weekday": { "direct": 6.0, "allIn": 6.3 },
+      "weekend": { "direct": 6.0, "allIn": 6.61 }
+    }
+  },
+  "gdShell": {
+    "fallback": 11.65,
+    "discount8th": 1.88,
+    "discountWedSat": 0.98
+  },
+  "gdSinopec": {
+    "fallback": 11.65,
+    "discountPerLiter": 2.0,
+    "cards": [
+      { "id": "one-year", "label": "1 年卡", "fee": 388 },
+      { "id": "two-year", "label": "2 年卡", "fee": 588 }
+    ]
+  }
+}

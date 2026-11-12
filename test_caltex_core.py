@@ -15,6 +15,7 @@ from caltex_core import (
     compare_cross_border,
     parse_showapi_oilprice,
     parse_apihz_oilprice,
+    parse_mxnzp_oilprice,
     FALLBACK_DISCOUNT_CARDS,
     FALLBACK_COUPONS,
 )
@@ -241,6 +242,16 @@ def test_parse_apihz_official_nested():
     assert approx(parse_apihz_oilprice({"code": 200, "data": {"data1": {"98": None}, "data2": {"98": "9.25"}}}), 9.25)
     # 數字型別亦可
     assert approx(parse_apihz_oilprice({"code": "200", "data": {"data1": {"98": 9.1}}}), 9.1)
+
+
+def test_parse_mxnzp_oilprice():
+    assert approx(parse_mxnzp_oilprice({"code": 1, "data": {"t98": "9.79"}}), 9.79)
+    try:
+        parse_mxnzp_oilprice({"code": 0, "msg": "app_secret錯誤"})
+    except ValueError as exc:
+        assert "app_secret錯誤" in str(exc)
+    else:
+        raise AssertionError("RollToolsApi 錯誤碼應拋出 ValueError")
 
 
 

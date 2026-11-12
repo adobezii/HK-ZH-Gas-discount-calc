@@ -1,211 +1,562 @@
 # -*- coding: utf-8 -*-
-"""
-粵港油價即時對比計算器（Streamlit 版）
+"""粵港六站油價比較器（Streamlit）。
 
 執行：streamlit run fuel_calc.py
-
-整合：
-  1. 加德士拆單券後實付（caltex_core.calc_caltex_effective_price）
-  2. 內地延長殼牌 98 折後價 + 日期優惠規則（8 號 / 週三六，不疊加取最平）
-  3. 即時匯率 CNY→HKD（exchangerate.fun / open.er-api.com，失敗用備用值）
-  4. 橋費攤分與回本門檻
 """
 
-import math
-from datetime import datetime
+from __future__ import annotations
+
+from datetime import date
+from typing import Any
 
 import streamlit as st
 
 from caltex_core import (
-    calc_caltex_effective_price,
-    pick_card_discount,
-    filter_coupons,
-    date_discount,
-    compare_cross_border,
+    fetch_cn_98_price,
+    fetch_cn_98_price_apihz,
+    fetch_cn_98_price_mxnzp,
+    fetch_cn_98_price_showapi,
     fetch_cny_hkd_rate,
     fetch_hk_prices,
-    fetch_cn_98_price,
-    fetch_cn_98_price_showapi,
-    fetch_cn_98_price_apihz,
+)
+from gas_dashboard import (
+    CITY_LABELS,
+    build_quotes,
+    default_state,
+    fallback_hk_data,
+    load_city_snapshot,
+    load_promotions,
 )
 
-st.set_page_config(page_title="粵港油價對比計算器", page_icon="⛽", layout="wide")
+st.set_page_config(page_title="粵港六站油價比較", page_icon="⛽", layout="wide")
+
+PROMOTIONS = load_promotions()
+CITIES = list(CITY_LABELS.items())
+
+st.markdown(
+    """
+    <style>
+    :root {
+      --panel: #121a28; --line: #29364a; --muted: #9aa8ba; --good: #34d399;
+    }
+    html, body, [class*="css"] {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "PingFang TC", "PingFang HK", "PingFang SC", sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+    .block-container { max-width: 1500px; padding-top: 2rem; }
+    [data-testid="stMetric"] {
+      border: 1px solid var(--line); border-radius: 14px;
+      background: var(--panel); padding: .85rem;
+    }
+    [data-testid="stMetricValue"] { letter-spacing: -.03em; }
+    .station-card {
+      min-height: 178px; padding: 1rem; border: 1px solid var(--line);
+      border-radius: 14px; background: var(--panel); margin-bottom: .7rem;
+      border-top: 3px solid var(--station-accent);
+    }
+    .station-card.winner { border-color: var(--good); }
+    .station-kicker { color: var(--muted); font-size: .72rem; }
+    .station-title { margin: .18rem 0; font-size: 1.03rem; font-weight: 750; }
+    .station-price { margin-top: .8rem; font-size: 1.65rem; font-weight: 800; }
+    .station-total { color: var(--muted); font-size: .78rem; }
+    .winner-chip {
+      display: inline-block; margin-left: .35rem; padding: .1rem .4rem;
+      border: 1px solid var(--good); border-radius: 999px;
+      color: var(--good); font-size: .62rem;
+    }
+    div[data-testid="stExpander"] {
+      border-color: var(--line) !important; background: var(--panel);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 @st.cache_data(ttl=3600)
-def get_live_data():
-    """聯網抓取香港牌價／折扣卡／油券與匯率（快取 1 小時）。"""
-    prices, cards, coupons = fetch_hk_prices()
-    rate = fetch_cny_hkd_rate()
-    return prices, cards, coupons, rate
+def get_hk_data() -> dict[str, Any]:
+    fallback = fallback_hk_data()
+    try:
+        prices, cards, coupons = fetch_hk_prices()
+        return {
+            "loaded": True,
+            "shell": {
+                "premium": prices["premium"],
+                "standard": prices["standard"],
+            },
+            "caltex": {
+                "premium": prices["premium"],
+                "standard": prices["standard"],
+            },
+            "cnpc": prices["premium"],
+            "sinopec": {
+                "premium": prices["premium"],
+                "standard": prices["standard"],
+            },
+            "cards": cards,
+            "coupons": coupons,
+        }
+    except Exception:
+        return fallback
 
 
-prices, cards, coupons, auto_rate = get_live_data()
+@st.cache_data(ttl=3600)
+def get_fx() -> float:
+    try:
+        return float(fetch_cny_hkd_rate())
+    except Exception:
+        return 1.08
 
-# ===== 側邊欄參數 =====
-st.sidebar.header("⚙️ 參數設定")
-calc_date = st.sidebar.date_input("加油日期", datetime.now())
-weekday = calc_date.weekday()
-day_of_month = calc_date.day
 
-rate_input = st.sidebar.number_input("CNY → HKD 匯率", value=float(f"{auto_rate:.4f}"), step=0.005)
-bridge_toll = st.sidebar.number_input("來回橋費 / 額外口岸成本 (HKD)", value=340.0, step=10.0)
-fuel_volume = st.sidebar.slider("加油容量 (L)", 30.0, 85.0, 72.67, 0.5)
-trip_mode = st.sidebar.radio("行程模式", ["專程北上（含橋費）", "順路北上（零橋費）"], index=0)
-toll = bridge_toll if trip_mode.startswith("專程") else 0.0
+if "dashboard" not in st.session_state:
+    st.session_state.dashboard = default_state()
+    st.session_state.dashboard["fx"] = get_fx()
 
-# 抓取控制放在「原價」欄位之前：按鈕在同一次執行中先寫入 session_state，
-# 之後建立的 widget 才會採用新值（否則 Streamlit 不允許改動已建立的 widget）。
-st.sidebar.subheader("🌐 即時抓取（可選）")
-cn_source = st.sidebar.selectbox(
-    "內地油價來源",
-    ["接口盒子 全國油價（id + key）", "ShowAPI 今日油價（APPCODE）", "起零數據全國油價（token）"],
-)
-use_apihz = cn_source.startswith("接口盒子")
-use_showapi = cn_source.startswith("ShowAPI")
+state = st.session_state.dashboard
 
-if "cn_base_price" not in st.session_state:
-    st.session_state.cn_base_price = 11.74
 
-cn_id = st.sidebar.text_input("開發者 ID", help="接口盒子的數字 ID") if use_apihz else ""
-cn_key = st.sidebar.text_input(
-    "開發者 KEY" if use_apihz else ("APPCODE" if use_showapi else "起零數據 token"),
-    type="password",
-    help="留空則以手動輸入為準",
-)
-if st.sidebar.button("↻ 抓取內地 98# 牌價"):
-    if cn_key and (not use_apihz or cn_id):
+def manual_price_input(
+    label: str,
+    config: dict[str, Any],
+    fallback: float,
+    key: str,
+) -> None:
+    enabled = st.checkbox(
+        f"手動輸入{label}",
+        value=config["manual_price"] is not None,
+        key=f"{key}_on",
+    )
+    if enabled:
+        config["manual_price"] = st.number_input(
+            f"{label}（每升）",
+            min_value=0.0,
+            value=float(config["manual_price"] or fallback),
+            step=0.05,
+            key=f"{key}_value",
+        )
+    else:
+        config["manual_price"] = None
+
+
+def city_binding_control(config: dict[str, Any], key: str) -> None:
+    override = st.checkbox(
+        "個別覆寫城市",
+        value=config["city_mode"] == "override",
+        key=f"{key}_override",
+    )
+    if override:
+        config["city_mode"] = "override"
+        config["override_city"] = st.selectbox(
+            "方案城市",
+            [value for value, _ in CITIES],
+            format_func=lambda value: CITY_LABELS[value],
+            index=[value for value, _ in CITIES].index(config["override_city"]),
+            key=f"{key}_city",
+        )
+    else:
+        config["city_mode"] = "follow"
+
+
+with st.sidebar:
+    st.header("全域條件")
+    st.caption("兩個廣東方案預設跟隨全域城市，可個別覆寫。")
+    selected_city = st.selectbox(
+        "大陸城市",
+        [value for value, _ in CITIES],
+        format_func=lambda value: CITY_LABELS[value],
+        index=[value for value, _ in CITIES].index(state["global_city"]),
+    )
+    state["global_city"] = selected_city
+
+    selected_date = st.date_input(
+        "加油日期", value=date.fromisoformat(state["date"])
+    )
+    state["date"] = selected_date.isoformat()
+    state["liters"] = st.number_input(
+        "入油升數（L）",
+        min_value=1.0,
+        max_value=100.0,
+        value=float(state["liters"]),
+        step=0.5,
+    )
+    state["fx"] = st.number_input(
+        "CNY → HKD",
+        min_value=0.01,
+        value=float(state["fx"]),
+        step=0.005,
+        format="%.4f",
+    )
+
+    if st.button("更新香港油價與匯率", use_container_width=True):
+        get_hk_data.clear()
+        get_fx.clear()
+        state["fx"] = get_fx()
+        st.rerun()
+
+    st.divider()
+    st.subheader("大陸油價來源")
+    source = st.selectbox(
+        "來源",
+        ["城市快照", "接口盒子", "ShowAPI", "起零數據", "RollToolsApi"],
+    )
+    snapshot = load_city_snapshot()
+    st.caption(
+        f"城市快照更新：{snapshot.get('updated_hkt', '—')}；"
+        "省級 API 只代表廣東全省。"
+    )
+    credentials: dict[str, str] = {}
+    if source in ("接口盒子", "RollToolsApi"):
+        credentials["id"] = st.text_input("開發者 ID／app_id")
+    if source != "城市快照":
+        credentials["key"] = st.text_input(
+            "KEY／APPCODE／TOKEN", type="password"
+        )
+    if st.button("套用大陸油價", use_container_width=True):
         try:
-            if use_apihz:
-                _fetched = fetch_cn_98_price_apihz(cn_id, cn_key, sheng="广东")
-            elif use_showapi:
-                _fetched = fetch_cn_98_price_showapi(cn_key, prov="广东")
+            if source == "城市快照":
+                state["gd_shell"]["manual_price"] = None
+                state["gd_sinopec"]["manual_price"] = None
+                st.success(f"已使用 {CITY_LABELS[state['global_city']]} 城市快照")
+            elif source == "接口盒子":
+                price = fetch_cn_98_price_apihz(
+                    credentials["id"], credentials["key"]
+                )
+                state["gd_shell"]["manual_price"] = price
+                state["gd_sinopec"]["manual_price"] = price
+                st.success(f"廣東全省 98#：¥{price:.2f}/L")
+            elif source == "ShowAPI":
+                price = fetch_cn_98_price_showapi(credentials["key"])
+                state["gd_shell"]["manual_price"] = price
+                state["gd_sinopec"]["manual_price"] = price
+                st.success(f"廣東全省 98#：¥{price:.2f}/L")
+            elif source == "起零數據":
+                price = fetch_cn_98_price(credentials["key"])
+                state["gd_shell"]["manual_price"] = price
+                state["gd_sinopec"]["manual_price"] = price
+                st.success(f"廣東全省 98#：¥{price:.2f}/L")
             else:
-                _fetched = fetch_cn_98_price(cn_key, province="广东")
-            st.session_state.cn_base_price = float(_fetched)
-            st.sidebar.success(f"已更新：¥{float(_fetched):.2f}/L")
+                price = fetch_cn_98_price_mxnzp(
+                    credentials["id"], credentials["key"]
+                )
+                state["gd_shell"]["manual_price"] = price
+                state["gd_sinopec"]["manual_price"] = price
+                st.success(f"廣東全省 98#：¥{price:.2f}/L")
         except Exception as exc:
-            st.sidebar.error(f"抓取失敗：{exc}")
-    else:
-        st.sidebar.warning("請先填入 " + ("開發者 ID 與 KEY" if use_apihz else ("APPCODE" if use_showapi else "起零數據 token")) + "。")
+            st.error(f"抓取失敗：{exc}")
 
-mainland_base_price = st.sidebar.number_input("原價 (¥/L)", step=0.05, key="cn_base_price")
+    if st.button("重設全部設定", use_container_width=True):
+        st.session_state.dashboard = default_state()
+        st.rerun()
 
-st.sidebar.subheader("🇨🇳 內地油價（延長殼牌 98#）")
-disc_8th = st.sidebar.number_input("8 號立減 (¥/L)", value=2.18, step=0.05)
-disc_wed = st.sidebar.number_input("週三/六立減 (¥/L)", value=1.28, step=0.05)
-auto_disc = date_discount(day_of_month, weekday, disc_8th, disc_wed)
-mainland_discount = st.sidebar.number_input(
-    f"每升立減 (¥/L) — {auto_disc['label']}",
-    value=float(auto_disc["discount"]),
-    step=0.05,
-)
+hk_data = get_hk_data()
+quotes = build_quotes(state, hk_data=hk_data, snapshot=snapshot)
+winner = min(quotes, key=lambda item: item["total"])
 
-st.sidebar.caption("提示：8 號 / 週三六優惠不疊加，系統自動取較大折扣；金額依當月海報調整。")
-
-
-st.sidebar.subheader("🇭🇰 香港油價")
-hk_mode = st.sidebar.radio("香港油價模式", ["加德士券後價（拆單計算）", "手動輸入每升實付"], index=0)
-hk_caltex = None
-
-if hk_mode.startswith("加德士"):
-    st.sidebar.caption("加德士拆單計算設定")
-    fuel_type = st.sidebar.radio("油品", ["standard（黃金平油）", "premium（白金 98）"], index=0)
-    petrol = "standard" if "standard" in fuel_type else "premium"
-    card_desc = st.sidebar.selectbox("折扣卡", [c["description"] for c in cards], index=0)
-    card = next(c for c in cards if c["description"] == card_desc)
-    valid_coupons = filter_coupons(coupons, card["type"], petrol)
-    if not valid_coupons:
-        st.sidebar.warning("該折扣卡目前沒有可用油券，將以無券計算。")
-    coupon_desc = st.sidebar.selectbox(
-        "油券",
-        [c["description"] for c in valid_coupons],
-        index=0,
-    ) if valid_coupons else None
-    coupon = next((c for c in valid_coupons if c["description"] == coupon_desc), None) if coupon_desc else None
-    custom_discount = (
-        st.sidebar.number_input("自訂每升折扣 (HK$)", value=0.0, step=0.1)
-        if card["id"] == "starCard-others"
-        else 0.0
-    )
-    hk_list_default = prices["standard" if petrol == "standard" else "premium"]
-    list_price = st.sidebar.number_input("加德士牌價 (HK$/L，自動抓取)", value=float(hk_list_default), step=0.01)
-    card_discount = pick_card_discount(cards, card["id"], petrol, custom_discount)
-    spend = coupon["spend"] if coupon else 350.0
-    coupon_value = coupon["discount"] if coupon else 0.0
-    hk_caltex = calc_caltex_effective_price(list_price, card_discount, spend, coupon_value)
-    hk_unit_price = hk_caltex.actual_price
-else:
-    hk_unit_price = st.sidebar.number_input("香港每升實付 (HK$)", value=23.99, step=0.1)
-
-# ===== 核心計算 =====
-result = compare_cross_border(mainland_base_price, mainland_discount, rate_input, toll, fuel_volume, hk_unit_price)
-
-# ===== 主界面 =====
-st.title("⛽ 粵港油價即時對比")
+st.title("粵港六站油價及油卡比價")
 st.caption(
-    f"計算基準：{calc_date}（{auto_disc['label']}）｜匯率 1 CNY = {rate_input:.4f} HKD｜"
-    f"橋費 HK${toll:.0f}｜行程：{'專程北上' if trip_mode.startswith('專程') else '順路北上'}"
+    f"{state['date']}｜{state['liters']:.1f}L｜"
+    f"1¥ = HK${state['fx']:.4f}｜全域城市：{CITY_LABELS[state['global_city']]}"
 )
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("內地折後純油價", f"HK$ {result.cn_net_hkd:.2f} / L", f"¥ {result.cn_net_cny:.2f}")
-col2.metric("含橋費單價", f"HK$ {result.with_toll_price:.2f} / L", f"攤分橋費 HK${result.toll_share:.2f}")
-col3.metric("香港基準單價", f"HK$ {hk_unit_price:.2f} / L")
-col4.metric(
-    f"一箱（{fuel_volume:.1f}L）節省",
-    f"HK$ {result.save_total:.1f}",
-    delta=f"{result.save_total:.1f} HKD",
-    delta_color="normal" if result.save_total > 0 else "inverse",
+metric_cols = st.columns(4)
+metric_cols[0].metric(
+    "全場最抵", winner["name"], f"HK$ {winner['unit_price']:.2f}/L"
+)
+metric_cols[1].metric("最抵總額", f"HK$ {winner['total']:.2f}")
+second = min(
+    (item for item in quotes if item["station_id"] != winner["station_id"]),
+    key=lambda item: item["total"],
+)
+metric_cols[2].metric("領先次選", f"HK$ {second['total'] - winner['total']:.2f}")
+metric_cols[3].metric(
+    "香港資料", "即時／公開" if hk_data.get("loaded") else "內建備用"
 )
 
-if hk_caltex:
-    split_count = math.ceil(fuel_volume / hk_caltex.total_liters)
-    st.info(
-        f"加德士拆單計算：牌價 ${hk_caltex.list_price:.2f}，卡折扣 ${hk_caltex.card_discount:.2f}/L → "
-        f"折扣後 ${hk_caltex.discounted_price:.2f}/L；每張券需入 {hk_caltex.total_liters:.2f}L"
-        f"（免費 {hk_caltex.free_liters:.2f}L），實付 ${hk_caltex.amount_paid:.2f} → "
-        f"**券後 ${hk_caltex.actual_price:.2f}/L**。加滿 {fuel_volume:.1f}L 需拆單 **{split_count} 次**。"
+st.subheader("六站結果")
+for start in (0, 3):
+    cols = st.columns(3)
+    for column, item in zip(cols, quotes[start : start + 3]):
+        with column:
+            winner_class = " winner" if item["is_winner"] else ""
+            winner_chip = (
+                '<span class="winner-chip">最低</span>'
+                if item["is_winner"]
+                else ""
+            )
+            city = (
+                f" · {CITY_LABELS[item['city']]}" if item["city"] else ""
+            )
+            st.markdown(
+                f"""
+                <div class="station-card{winner_class}" style="--station-accent:{item['accent']}">
+                  <div class="station-kicker">{item['source_label']}{city}</div>
+                  <div class="station-title">{item['name']}{winner_chip}</div>
+                  <div class="station-price">HK$ {item['unit_price']:.2f}<small> / L</small></div>
+                  <div class="station-total">本次總額 HK$ {item['total']:.2f}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+st.subheader("方案設定")
+with st.expander("香港 Shell"):
+    shell = state["hk_shell"]
+    shell["fuel"] = st.selectbox(
+        "油品",
+        ["premium", "standard"],
+        format_func=lambda value: "V-Power" if value == "premium" else "FuelSave",
+        index=["premium", "standard"].index(shell["fuel"]),
+        key="st_shell_fuel",
+    )
+    shell["offer_day"] = st.selectbox(
+        "優惠日別",
+        ["auto", "wed", "weekend", "weekday"],
+        format_func=lambda value: {
+            "auto": "自動",
+            "wed": "星期三",
+            "weekend": "週末",
+            "weekday": "平日",
+        }[value],
+        index=["auto", "wed", "weekend", "weekday"].index(
+            shell["offer_day"]
+        ),
+        key="st_shell_day",
+    )
+    shell["include_points"] = st.checkbox(
+        "計入 GO+ 積分", value=shell["include_points"]
+    )
+    shell["coupon_min"] = st.number_input(
+        "滿額券門檻", min_value=0.0, value=float(shell["coupon_min"])
+    )
+    shell["coupon_value"] = st.number_input(
+        "滿額券減額", min_value=0.0, value=float(shell["coupon_value"])
+    )
+    shell["rebate_percent"] = st.number_input(
+        "信用卡回贈 %",
+        min_value=0.0,
+        max_value=100.0,
+        value=float(shell["rebate_percent"]),
+    )
+    manual_price_input(
+        "Shell 牌價",
+        shell,
+        hk_data["shell"][shell["fuel"]],
+        "st_shell_price",
     )
 
-st.divider()
-col_left, col_right = st.columns(2)
-
-with col_left:
-    st.subheader("📊 總花費明細")
-    comparison_data = {
-        "方案": ["香港（券後）", "專程北上（含橋費）", "順路北上（零橋費）"],
-        "每升成本 (HKD)": [
-            f"${hk_unit_price:.2f}",
-            f"${result.with_toll_price:.2f}",
-            f"${result.cn_net_hkd:.2f}",
-        ],
-        f"總支出（{fuel_volume:.1f}L）": [
-            f"${hk_unit_price * fuel_volume:.2f}",
-            f"${result.cn_net_hkd * fuel_volume + toll:.2f}",
-            f"${result.cn_net_hkd * fuel_volume:.2f}",
-        ],
-        "相對香港差額": [
-            "基準",
-            f"省 ${(hk_unit_price - result.with_toll_price) * fuel_volume:.2f}",
-            f"省 ${(hk_unit_price - result.cn_net_hkd) * fuel_volume:.2f}",
-        ],
+with st.expander("香港加德士"):
+    caltex = state["hk_caltex"]
+    caltex["fuel"] = st.selectbox(
+        "油品",
+        ["premium", "standard"],
+        format_func=lambda value: "白金 98" if value == "premium" else "黃金",
+        index=["premium", "standard"].index(caltex["fuel"]),
+        key="st_caltex_fuel",
+    )
+    card_ids = [card["id"] for card in hk_data["cards"]]
+    card_labels = {
+        card["id"]: card["description"] for card in hk_data["cards"]
     }
-    st.table(comparison_data)
+    caltex["card_id"] = st.selectbox(
+        "折扣卡",
+        card_ids,
+        index=(
+            card_ids.index(caltex["card_id"])
+            if caltex["card_id"] in card_ids
+            else 0
+        ),
+        format_func=lambda value: card_labels[value],
+    )
+    coupon_ids = [""] + [coupon["id"] for coupon in hk_data["coupons"]]
+    coupon_labels = {
+        "": "無油券",
+        **{
+            coupon["id"]: coupon["description"]
+            for coupon in hk_data["coupons"]
+        },
+    }
+    caltex["coupon_id"] = st.selectbox(
+        "油券",
+        coupon_ids,
+        index=(
+            coupon_ids.index(caltex["coupon_id"])
+            if caltex["coupon_id"] in coupon_ids
+            else 0
+        ),
+        format_func=lambda value: coupon_labels[value],
+    )
+    caltex["rebate_percent"] = st.number_input(
+        "信用卡回贈 %",
+        min_value=0.0,
+        max_value=100.0,
+        value=float(caltex["rebate_percent"]),
+        key="st_caltex_rebate",
+    )
+    manual_price_input(
+        "加德士牌價",
+        caltex,
+        hk_data["caltex"][caltex["fuel"]],
+        "st_caltex_price",
+    )
 
-with col_right:
-    st.subheader("💡 決策與損益平衡分析")
-    if result.breakeven_liters == float("inf"):
-        st.error("內地折後價折合港幣後已高於香港基準，專程北上不划算。")
-    else:
-        st.write(f"• **專程北上回本門檻**：每次需加滿 **{result.breakeven_liters:.1f} L** 方可抵消 HK${toll:.0f} 橋費。")
-        if result.worth_direct:
-            st.success(f"目前設定容量（{fuel_volume:.1f}L）已超過回本門檻，專程前往依然划算！")
-        else:
-            st.warning(f"目前設定容量（{fuel_volume:.1f}L）低於回本門檻，專程前往會倒蝕橋費。")
-    st.write(f"• **順路北上效益**：若本身有出行需求（橋費不計入），加滿可直接節省 **HK${(hk_unit_price - result.cn_net_hkd) * fuel_volume:.1f}**。")
+with st.expander("香港中石油"):
+    cnpc = state["hk_cnpc"]
+    cnpc["eligible"] = st.checkbox(
+        "符合折實滿 HK$300", value=cnpc["eligible"]
+    )
+    use_override = st.checkbox(
+        "手動覆寫純直減", value=cnpc["discount_override"] is not None
+    )
+    cnpc["discount_override"] = (
+        st.number_input(
+            "每升直減",
+            min_value=0.0,
+            value=float(cnpc["discount_override"] or 0.0),
+            step=0.05,
+        )
+        if use_override
+        else None
+    )
+    manual_price_input(
+        "中石油超級汽油牌價",
+        cnpc,
+        hk_data["cnpc"],
+        "st_cnpc_price",
+    )
+    st.caption("只計純直減；週末官方未列明直減時請手動覆寫。")
 
-st.caption(
-    "資料來源：香港牌價／折扣卡／油券 — hk-petrol-price-crawler（data.gov.hk）；匯率 — exchangerate.fun／open.er-api.com；"
-    "內地油價 — 起零數據。加德士折扣算法移植自 hkg-deadline/caltex-discount-calc（GPL-3.0）。"
+with st.expander("香港中石化"):
+    sinohk = state["hk_sinopec"]
+    sinohk["fuel"] = st.selectbox(
+        "油品",
+        ["premium", "standard"],
+        format_func=lambda value: (
+            "超級汽油" if value == "premium" else "中石化汽油"
+        ),
+        index=["premium", "standard"].index(sinohk["fuel"]),
+        key="st_sinohk_fuel",
+    )
+    sinohk["member"] = st.checkbox(
+        "符合 X CARD／APP 會員", value=sinohk["member"]
+    )
+    sinohk["include_points"] = st.checkbox(
+        "計入積分最高價值", value=sinohk["include_points"]
+    )
+    use_sino_override = st.checkbox(
+        "手動覆寫每升優惠",
+        value=sinohk["discount_override"] is not None,
+    )
+    sinohk["discount_override"] = (
+        st.number_input(
+            "每升優惠",
+            min_value=0.0,
+            value=float(sinohk["discount_override"] or 0.0),
+            step=0.01,
+        )
+        if use_sino_override
+        else None
+    )
+    manual_price_input(
+        "中石化牌價",
+        sinohk,
+        hk_data["sinopec"][sinohk["fuel"]],
+        "st_sinohk_price",
+    )
+
+with st.expander("廣東 Shell"):
+    gd_shell = state["gd_shell"]
+    city_binding_control(gd_shell, "st_gd_shell")
+    gd_shell["include_toll"] = st.checkbox(
+        "計入過境路費", value=gd_shell["include_toll"]
+    )
+    city = (
+        state["global_city"]
+        if gd_shell["city_mode"] == "follow"
+        else gd_shell["override_city"]
+    )
+    city_entry = snapshot["cities"].get(
+        f"guangdong/{city}.shtml", {}
+    )
+    manual_price_input(
+        "廣東 Shell 98# 牌價",
+        gd_shell,
+        float(city_entry.get("p98", 11.65)),
+        "st_gd_shell_price",
+    )
+
+with st.expander("廣東中石化愛跑98"):
+    gd_sino = state["gd_sinopec"]
+    city_binding_control(gd_sino, "st_gd_sinopec")
+    gd_sino["discount_per_liter"] = st.number_input(
+        "每升立減（¥/L）",
+        min_value=0.0,
+        value=float(gd_sino["discount_per_liter"]),
+        step=0.1,
+    )
+    card_options = PROMOTIONS["gdSinopec"]["cards"]
+    card_labels = {
+        card["id"]: f"{card['label']} · ¥{card['fee']}"
+        for card in card_options
+    }
+    selected_card = st.selectbox(
+        "加油卡方案",
+        [card["id"] for card in card_options],
+        index=1 if gd_sino["card_fee"] == card_options[1]["fee"] else 0,
+        format_func=lambda value: card_labels[value],
+    )
+    gd_sino["card_fee"] = next(
+        card["fee"] for card in card_options if card["id"] == selected_card
+    )
+    gd_sino["include_toll"] = st.checkbox(
+        "計入過境路費",
+        value=gd_sino["include_toll"],
+        key="st_gd_sinopec_toll",
+    )
+    city = (
+        state["global_city"]
+        if gd_sino["city_mode"] == "follow"
+        else gd_sino["override_city"]
+    )
+    city_entry = snapshot["cities"].get(
+        f"guangdong/{city}.shtml", {}
+    )
+    manual_price_input(
+        "廣東中石化 98# 牌價",
+        gd_sino,
+        float(city_entry.get("p98", 11.65)),
+        "st_gd_sinopec_price",
+    )
+    payback = (
+        gd_sino["card_fee"] / gd_sino["discount_per_liter"]
+        if gd_sino["discount_per_liter"] > 0
+        else None
+    )
+    st.caption(
+        f"卡費回本：{payback:.0f}L；卡費不計入單次加油總額。"
+        if payback
+        else "請設定大於 0 的每升立減。"
+    )
+
+st.subheader("分享摘要")
+summary_lines = [
+    f"【粵港六站油價比價】{state['date']}",
+    f"{state['liters']:.1f}L｜1¥ = HK${state['fx']:.4f}｜"
+    f"全域城市 {CITY_LABELS[state['global_city']]}",
+]
+for item in quotes:
+    city = (
+        f"（{CITY_LABELS[item['city']]}）" if item["city"] else ""
+    )
+    summary_lines.append(
+        f"{item['name']}{city}：HK${item['unit_price']:.2f}/L，"
+        f"總額 HK${item['total']:.2f}"
+    )
+summary_lines.append(
+    f"全場最抵：{winner['name']}，HK${winner['unit_price']:.2f}/L"
 )
+st.code("\n".join(summary_lines), language=None)
+st.caption("價格及優惠僅供參考，以油站實際交易為準。")

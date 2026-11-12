@@ -464,3 +464,43 @@ def fetch_cn_98_price_apihz(dev_id, dev_key, sheng="广东", petrol="98", timeou
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         raw = resp.read()
     return parse_apihz_oilprice(_decode_json(raw), petrol)
+
+
+def parse_mxnzp_oilprice(payload):
+    """解析 RollToolsApi 全國油價回應中的 98# 價格。"""
+    import json
+
+    if isinstance(payload, (bytes, bytearray)):
+        payload = payload.decode("utf-8", "ignore")
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    if not isinstance(payload, dict):
+        raise ValueError("RollToolsApi 回應格式非預期")
+    code = payload.get("code")
+    if code not in (1, "1"):
+        raise ValueError("RollToolsApi 回報錯誤：" + str(payload.get("msg") or code))
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        raise ValueError("RollToolsApi 回應缺少 data")
+    for key in ("t98", "p98", "98"):
+        value = data.get(key)
+        if value not in (None, "", "null"):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                continue
+    raise ValueError("RollToolsApi 找不到 98# 價格")
+
+
+def fetch_cn_98_price_mxnzp(app_id, app_secret, province="广东", timeout=8.0):
+    """以 app_id + app_secret 取得 RollToolsApi 省級 98# 油價。"""
+    import urllib.parse
+    import urllib.request
+
+    url = "https://www.mxnzp.com/api/oil/search?" + urllib.parse.urlencode(
+        {"province": province, "app_id": app_id, "app_secret": app_secret}
+    )
+    req = urllib.request.Request(url, headers={"User-Agent": "fuel-price-compare/1.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read()
+    return parse_mxnzp_oilprice(_decode_json(raw))

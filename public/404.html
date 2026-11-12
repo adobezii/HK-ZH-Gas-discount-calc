@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-HK">
+  <head>
+    <meta charset="UTF-8" />
+    <title>粵港油價比價</title>
+    <script>
+      const base = "/HK-ZH-Gas-discount-calc";
+      const path = window.location.pathname.startsWith(base)
+        ? window.location.pathname.slice(base.length)
+        : "/";
+      window.location.replace(`${base}/?redirect=${encodeURIComponent(path)}`);
+    </script>
+  </head>
+  <body></body>
+</html>
