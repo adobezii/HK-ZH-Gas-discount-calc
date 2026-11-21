@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Controls } from "../components/Controls";
 import { DataStatusBar } from "../components/DataStatusBar";
@@ -16,31 +16,16 @@ interface Props {
 
 export function DashboardPage({ model }: Props) {
   const [selected, setSelected] = useState<StationId | null>(null);
-  const [showSticky, setShowSticky] = useState(false);
   const selectedQuote = model.quotes.find((quote) => quote.stationId === selected);
 
-  useEffect(() => {
-    const update = () => setShowSticky(window.scrollY > 280);
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    return () => window.removeEventListener("scroll", update);
-  }, []);
-
   return (
-    <div className="page">
+    <div className="page dashboard-page">
       <header className="page-heading">
         <div>
-          <div className="eyebrow">六站資料 · {model.config.date}</div>
-          <h1>粵港六站油價及油卡比價</h1>
-          <p className="lede">
-            香港四站與廣東兩站按同一油量、匯率、日期及行程成本比較。預設城市為
-            {CITY_LABELS[model.config.globalCity]}。
-          </p>
+          <div className="eyebrow">香港 × {CITY_LABELS[model.config.globalCity]}</div>
+          <h1>粵港三站油價比價</h1>
         </div>
         <div className="inline-actions">
-          <span className="badge view-mode-desktop">電腦版 · 六站總覽</span>
-          <span className="badge view-mode-mobile">手機版 · 最抵三強</span>
-          <span className="badge">資料日期 {model.config.date}</span>
           <Link className="button subtle pressable" to="/classic">
             經典比較
           </Link>
@@ -53,25 +38,18 @@ export function DashboardPage({ model }: Props) {
         best={model.best}
         quotes={model.quotes}
         config={model.config}
+        breakEven={model.breakEven}
       />
       <StationMatrix quotes={model.quotes} onSelect={setSelected} />
       <SourcePanel model={model} />
       <SharePanel model={model} />
 
-      {!selectedQuote && showSticky ? (
-        <div className="sticky-summary" aria-live="polite">
-          <div className="sticky-summary-winner">
-            <span>全場最抵</span>
-            <strong>{model.best.name}</strong>
-          </div>
-          <div>
-            <span>每升</span>
-            <strong>HK${model.best.unitPriceHkd.toFixed(2)}</strong>
-          </div>
-          <div>
-            <span>總額</span>
-            <strong>HK${model.best.totalHkd.toFixed(2)}</strong>
-          </div>
+      {!selectedQuote ? (
+        <div className="sticky-summary" aria-label="每升即場實付摘要">
+          {model.quotes.map((quote) => <div key={quote.stationId} className={quote.isWinner ? "sticky-summary-winner" : undefined}>
+            <span>{quote.shortName}{quote.isWinner ? " · 最抵" : ""}</span>
+            <strong>HK${quote.unitPriceHkd.toFixed(2)}/L</strong>
+          </div>)}
         </div>
       ) : null}
 

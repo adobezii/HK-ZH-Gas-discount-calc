@@ -25,11 +25,9 @@ function scopeLabel(scope: string | undefined) {
 
 export function DataStatusBar({ model }: Props) {
   const hkTime = model.live.updatedAt
-    ? new Date(model.live.updatedAt).toLocaleTimeString("zh-HK", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? new Date(model.live.updatedAt).toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong" })
     : null;
+  const snapshotChecked = citySnapshot.checked_at ? new Date(citySnapshot.checked_at).toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong" }) : "未記錄";
   const gdQuotes = model.quotes.filter((quote) => quote.cityMode);
   const scopeSet = [...new Set(gdQuotes.map((quote) => quote.priceScope))];
   const scopeText =
@@ -45,11 +43,13 @@ export function DataStatusBar({ model }: Props) {
   return (
     <section className="data-status-bar" aria-label="資料狀態" aria-live="polite">
       <span className="data-status-chip">
-        香港價 {model.live.loaded ? `${hkTime ?? "已更新"}` : "備用價"}
+        香港最近查價 {model.live.loaded ? hkTime : "未成功，使用備用價"}{model.status === "error" && model.live.loaded ? "（本次失敗）" : ""}
       </span>
       <span className="data-status-chip">
-        城市快照 {citySnapshot.updated_hkt}
+        城市快照資料日期 {citySnapshot.updated_hkt}
       </span>
+      <span className="data-status-chip">城市最近查價 {snapshotChecked}</span>
+      <span className="data-status-chip">匯率 {model.config.fxMode === "manual" ? "手動" : model.fxAsOf ? model.fxAsOf.slice(0, 10) : "備用／上次數值"}</span>
       <span className="data-status-chip">全域城市 {cityText}</span>
       <span className="data-status-chip">大陸資料 {scopeText}</span>
       <span className="data-status-chip">

@@ -149,9 +149,13 @@ export function StationMatrix({ quotes, onSelect }: Props) {
 
           <div className="details-grid">
             <div className="detail-row">
-              <span>本次總額</span>
+              <span>即場實付總額{quote.cityMode ? "（按路費設定）" : ""}</span>
               <strong>HK${quote.totalHkd.toFixed(2)}</strong>
             </div>
+            {quote.equivalentHkd !== undefined && Math.abs(quote.totalHkd - quote.equivalentHkd) >= 0.005 ? <div className="detail-row">
+              <span>回贈後等效總額</span>
+              <strong>HK${quote.equivalentHkd.toFixed(2)}</strong>
+            </div> : null}
             <div className="detail-row">
               <span>相對牌價節省</span>
               <strong>

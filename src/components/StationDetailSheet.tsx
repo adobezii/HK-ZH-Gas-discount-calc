@@ -22,8 +22,10 @@ import {
   type StationId,
 } from "../types";
 import { springFromApple } from "../physics";
+import { FillTarget } from "./FillTarget";
 import {
   cnpcDirectDiscount,
+  eligibleCaltexCoupons,
   hkSinopecDiscount,
   resolveCity,
 } from "../calc";
@@ -295,6 +297,8 @@ export function StationDetailSheet({
         </div>
 
         <div className="sheet-form">
+          {(["hk-shell", "hk-caltex", "gd-shell"] as StationId[]).includes(quote.stationId) ?
+            <FillTarget config={config} live={live} station={quote.stationId} setConfig={update} /> : null}
           {quote.stationId === "hk-shell" ? (
             <>
               <div className="field full">
@@ -308,7 +312,7 @@ export function StationDetailSheet({
                       onClick={() =>
                         update({
                           ...config,
-                          hkShell: { ...config.hkShell, fuel },
+                          hkShell: { ...config.hkShell, fuel, manualPrice: config.hkShell.fuel === fuel ? config.hkShell.manualPrice : undefined },
                         })
                       }
                     >
@@ -444,7 +448,7 @@ export function StationDetailSheet({
                       onClick={() =>
                         update({
                           ...config,
-                          hkCaltex: { ...config.hkCaltex, fuel },
+                          hkCaltex: { ...config.hkCaltex, fuel, manualPrice: config.hkCaltex.fuel === fuel ? config.hkCaltex.manualPrice : undefined },
                         })
                       }
                     >
@@ -490,13 +494,22 @@ export function StationDetailSheet({
                     })
                   }
                 >
-                  {live.coupons.map((coupon) => (
+                  <option value="">不用油券</option>
+                  {eligibleCaltexCoupons(live.cards.find((card) => card.id === config.hkCaltex.cardId) ?? live.cards[0], config.hkCaltex.fuel, live.coupons).map((coupon) => (
                     <option key={coupon.id} value={coupon.id}>
                       {coupon.description}
                     </option>
                   ))}
                 </select>
               </label>
+              <label className="field">
+                <span>最多使用券數（留空按油量）</span>
+                <input className="input" type="number" min="0" step="1" value={config.hkCaltex.couponLimit ?? ""} onChange={(event) => update({ ...config, hkCaltex: { ...config.hkCaltex, couponLimit: event.target.value === "" ? undefined : Math.max(0, Math.floor(Number(event.target.value))) } })} />
+              </label>
+              <details className="field full coupon-help">
+                <summary aria-label="加德士油券算法">?</summary>
+                <p>每單按牌價達到門檻才可用一張券。以滿 HK$350 抵 HK$50 為例，先抵 HK$50 牌價對應的升數，餘量按能源卡價計算，並非在卡後金額再扣 HK$50。</p>
+              </details>
               <label className="field">
                 <span>信用卡回贈 %</span>
                 <input
@@ -750,6 +763,14 @@ export function StationDetailSheet({
 
           {quote.stationId === "gd-shell" ? (
             <>
+              <div className="field full">
+                <span>98# 優惠快捷鍵</span>
+                <div className="inline-actions">
+                  {([[undefined, "按日期"], [1.88, "8／18／28 減 ¥1.88/L"], [0.98, "週三／六減 ¥0.98/L"]] as const).map(([discountOverride, label]) => (
+                    <button key={label} className="button subtle pressable" type="button" aria-pressed={config.gdShell.discountOverride === discountOverride} onClick={() => update({ ...config, gdShell: { ...config.gdShell, discountOverride } })}>{label}</button>
+                  ))}
+                </div>
+              </div>
               <CityControl
                 binding={config.gdShell.binding}
                 overrideCity={config.gdShell.overrideCity}
@@ -811,7 +832,7 @@ export function StationDetailSheet({
               <div className="warning full">
                 {config.gdShell.manualPrice?.scope === "province"
                   ? "此價格為廣東全省 API，不提供珠海／深圳／廣州細分。選擇城市只會影響下次套用城市快照。"
-                  : "汽油价格网快照提供城市價；省級 API 只提供廣東全省價格。"}
+                  : "城市快照為參考價，不等同個別 Shell 油站牌價。"}
               </div>
             </>
           ) : null}

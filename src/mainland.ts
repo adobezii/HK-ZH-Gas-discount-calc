@@ -27,7 +27,7 @@ function find98(value: unknown): number | null {
     const normalized = key.toLowerCase().replace(/[_\- ]/g, "");
     if (["p98", "98", "t98", "price98", "oil98", "no98"].includes(normalized)) {
       const parsed = Number(item);
-      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+      if (Number.isFinite(parsed) && parsed >= 3 && parsed <= 20) return parsed;
     }
     if (item && typeof item === "object") {
       const found = find98(item);
@@ -56,6 +56,7 @@ export async function fetchMainlandPrice(
 ): Promise<{ price: number; cityScoped: boolean; label: string }> {
   if (source === "snapshot") {
     const entry = cityPrice(city, citySnapshot);
+    if (entry.source !== "snapshot") throw new Error("城市快照缺少 98# 價格；仍可手動輸入牌價。");
     return {
       price: entry.price,
       cityScoped: entry.source === "snapshot",
@@ -99,6 +100,10 @@ export async function fetchMainlandPrice(
     );
   }
 
+  if (source === "showapi") {
+    const body = (payload as { showapi_res_body?: { list?: Array<{ prov?: string }> } })?.showapi_res_body;
+    if (Array.isArray(body?.list)) payload = body.list.filter((entry) => /^(廣東|广东)$/.test(entry.prov?.trim() ?? ""));
+  }
   const price = find98(payload);
   if (price === null) throw new Error("回應沒有可解析的 98# 價格");
   return { price, cityScoped: false, label: "廣東全省" };

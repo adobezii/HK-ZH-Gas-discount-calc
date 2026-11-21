@@ -42,36 +42,24 @@ export function SourcePanel({ model }: Props) {
         credentials,
       );
       if (result.cityScoped) {
-        setConfig({
-          ...config,
-          gdShell: { ...config.gdShell, manualPrice: undefined },
-          gdSinopec: { ...config.gdSinopec, manualPrice: undefined },
-        });
+        setConfig((current) => ({ ...current, gdShell: { ...current.gdShell, manualPrice: undefined } }));
       } else {
-        setConfig({
-          ...config,
+        setConfig((current) => ({
+          ...current,
           gdShell: {
-            ...config.gdShell,
+            ...current.gdShell,
             manualPrice: {
               value: result.price,
               scope: "province",
               label: "廣東全省 API",
             },
           },
-          gdSinopec: {
-            ...config.gdSinopec,
-            manualPrice: {
-              value: result.price,
-              scope: "province",
-              label: "廣東全省 API",
-            },
-          },
-        });
+        }));
       }
       setStatus({
         tone: "success",
         text: `${result.label} 98# ¥${result.price.toFixed(2)}/L${
-          result.cityScoped ? "" : "，已套用至兩個廣東方案"
+          result.cityScoped ? "" : "，已套用至廣東 Shell"
         }`,
       });
     } catch (error) {
@@ -109,7 +97,7 @@ export function SourcePanel({ model }: Props) {
           <div className="field">
             <span>城市級價格</span>
             <div className="status-line success">
-              全域 {CITY_LABELS[config.globalCity]}；兩個廣東方案可獨立覆寫
+              全域 {CITY_LABELS[config.globalCity]}
             </div>
           </div>
         ) : (

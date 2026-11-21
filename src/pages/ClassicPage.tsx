@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { minimumBreakEven, rankComparison } from "../calc";
+import { citySnapshot } from "../data";
 import { Link } from "react-router-dom";
 import { Controls } from "../components/Controls";
 import { DecisionSummary } from "../components/DecisionSummary";
@@ -13,9 +15,9 @@ interface Props {
 
 export default function ClassicPage({ model }: Props) {
   const [selected, setSelected] = useState<StationId | null>(null);
-  const quotes = model.quotes.filter(
+  const quotes = rankComparison(model.quotes.filter(
     (quote) => quote.stationId === "hk-caltex" || quote.stationId === "gd-shell",
-  );
+  ));
   const best = quotes.reduce((winner, quote) =>
     quote.totalHkd < winner.totalHkd ? quote : winner,
   );
@@ -32,7 +34,7 @@ export default function ClassicPage({ model }: Props) {
           </p>
         </div>
         <Link className="button subtle pressable" to="/">
-          返回六站
+          返回首頁
         </Link>
       </header>
 
@@ -41,6 +43,7 @@ export default function ClassicPage({ model }: Props) {
         best={best}
         quotes={quotes}
         config={model.config}
+        breakEven={minimumBreakEven(model.config, model.live, citySnapshot, true)}
       />
       <StationMatrix quotes={quotes} onSelect={setSelected} />
 

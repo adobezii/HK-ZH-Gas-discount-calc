@@ -22,6 +22,9 @@ import { CITY_LABELS, STATIONS } from "./types";
 const dayOfWeek = (iso: string) => new Date(`${iso}T00:00:00`).getDay();
 const finite = (value: number) => (Number.isFinite(value) ? value : 0);
 const money = (value: number) => Math.max(0, finite(value));
+export const MIN_LITERS = 0.01;
+export const MAX_LITERS = 100;
+export const HOME_STATIONS: StationId[] = ["hk-shell", "hk-caltex", "gd-shell"];
 
 export function resolveCity(binding: CityBinding, globalCity: City): City {
   return binding.mode === "follow-global" ? globalCity : binding.city;
@@ -151,8 +154,10 @@ export function cityPrice(
   snapshot: CityPriceSnapshot,
 ): { price: number; source: "snapshot" | "fallback"; stale: boolean } {
   const entry = snapshot.cities[citySnapshotKey(city)];
-  if (entry?.p98 > 0) {
-    return { price: entry.p98, source: "snapshot", stale: Boolean(entry.stale) };
+  if (entry && Number.isFinite(entry.p98) && entry.p98 >= 3 && entry.p98 <= 20) {
+    const checked = Date.parse(entry.checked_at ?? snapshot.updated);
+    const stale = !Number.isFinite(checked) || Date.now() - checked > 48 * 3600_000;
+    return { price: entry.p98, source: "snapshot", stale: Boolean(entry.stale) || stale };
   }
   return { price: promotions.gdShell.fallback, source: "fallback", stale: false };
 }
@@ -177,20 +182,82 @@ function cardAndCoupon(
 ) {
   const card =
     cards.find((item) => item.id === config.hkCaltex.cardId) ?? cards[0] ?? fallbackCards[0];
-  const valid = coupons.filter((coupon) => {
-    const cardTypes = coupon.validCardType
-      ? Array.isArray(coupon.validCardType)
-        ? coupon.validCardType
-        : [coupon.validCardType]
-      : [];
-    return (
-      (!cardTypes.length || cardTypes.includes(card.type)) &&
-      (!coupon.validFor || coupon.validFor.includes(config.hkCaltex.fuel))
-    );
-  });
+  const valid = eligibleCaltexCoupons(card, config.hkCaltex.fuel, coupons);
   const coupon =
-    valid.find((item) => item.id === config.hkCaltex.couponId) ?? valid[0] ?? null;
+    valid.find((item) => item.id === config.hkCaltex.couponId) ?? null;
   return { card, coupon };
+}
+
+export function eligibleCaltexCoupons(card: CaltexCard | undefined, fuel: "standard" | "premium", coupons: CaltexCoupon[]) {
+  return card ? coupons.filter((coupon) => {
+    const types = coupon.validCardType;
+    return (!types || (Array.isArray(types) ? !types.length || types.includes(card.type) : types === card.type)) &&
+      (!coupon.validFor || coupon.validFor.includes(fuel)) && coupon.spend > 0 &&
+      coupon.discount >= 0 && coupon.discount < coupon.spend;
+  }) : [];
+}
+
+function fuelCosts(config: DashboardConfig, live: LivePrices, snapshot: CityPriceSnapshot) {
+  const shellBase = config.hkShell.manualPrice ?? live.shell[config.hkShell.fuel];
+  const shellDay = shellOfferDay(config.date, config.hkShell.offerDay);
+  const shellRule = promotions.hkShell.offers[config.hkShell.fuel][shellDay];
+  const shellRate = money(shellBase - shellRule.cash);
+  const shellCash = (liters: number) => {
+    const after = shellRate * liters;
+    return money(after - (config.hkShell.couponMin > 0 && after >= config.hkShell.couponMin ? money(config.hkShell.couponValue) : 0));
+  };
+  const { card, coupon } = cardAndCoupon(config, live.cards.length ? live.cards : fallbackCards, live.coupons.length ? live.coupons : fallbackCoupons);
+  const caltexBase = config.hkCaltex.manualPrice ?? live.caltex[config.hkCaltex.fuel];
+  const cardDiscount = config.hkCaltex.fuel === "standard" ? card.standardDiscount : card.premiumDiscount;
+  const caltexRate = money(caltexBase - cardDiscount);
+  const perCoupon = coupon && caltexBase > 0 ? coupon.spend / caltexBase : Infinity;
+  const couponLimit = config.hkCaltex.couponLimit === undefined ? Infinity : Math.floor(money(config.hkCaltex.couponLimit));
+  const couponCount = (liters: number) => Math.min(Math.floor(liters / perCoupon), couponLimit);
+  const caltexCash = (liters: number) => money(liters - couponCount(liters) * (coupon && caltexBase > 0 ? coupon.discount / caltexBase : 0)) * caltexRate;
+  const gdShellCity = resolveCity(config.gdShell.binding, config.globalCity);
+  const shellCityPrice = cityPrice(gdShellCity, snapshot);
+  const gdShellBase = config.gdShell.manualPrice?.value ?? shellCityPrice.price;
+  const shellDiscountAmount = config.gdShell.discountOverride ?? getGdShellDiscount(config.date);
+  const fx = Math.max(0.01, finite(config.fx));
+  const tollHkd = promotions.toll.rmbPerCrossing * promotions.toll.crossings * fx;
+  const gdRate = money(gdShellBase - shellDiscountAmount);
+  const gdCash = (liters: number) => gdRate * liters * fx + (config.gdShell.includeToll ? tollHkd : 0);
+  return { shellBase, shellRule, shellCash, coupon, perCoupon, couponCount, caltexBase, cardDiscount, caltexCash,
+    gdShellCity, shellCityPrice, gdShellBase, shellDiscountAmount, gdRate, gdCash, fx, tollHkd };
+}
+
+export function minimumBreakEven(config: DashboardConfig, live: LivePrices, snapshot: CityPriceSnapshot, classic = false) {
+  const costs = fuelCosts(config, live, snapshot);
+  for (let hundredths = 1; hundredths <= MAX_LITERS * 100; hundredths++) {
+    const liters = hundredths / 100;
+    const hk = Math.min(costs.caltexCash(liters), classic ? Infinity : costs.shellCash(liters));
+    if (costs.gdCash(liters) <= hk + 1e-9) return liters;
+  }
+  return null;
+}
+
+export function litersForTarget(config: DashboardConfig, live: LivePrices, snapshot: CityPriceSnapshot, station: StationId, mode: "gross" | "cash" | "coupons", amount: number) {
+  if (!(amount > 0) || !Number.isFinite(amount)) return null;
+  const costs = fuelCosts(config, live, snapshot);
+  if (mode === "coupons") {
+    if (station !== "hk-caltex" || !Number.isInteger(amount) || !Number.isFinite(costs.perCoupon)) return null;
+    const liters = Math.ceil(costs.perCoupon * amount * 100) / 100;
+    return liters <= MAX_LITERS ? liters : null;
+  }
+  const price = station === "hk-shell" ? costs.shellBase : station === "hk-caltex" ? costs.caltexBase : costs.gdShellBase * costs.fx;
+  const cash = station === "hk-shell" ? costs.shellCash : station === "hk-caltex" ? costs.caltexCash : costs.gdCash;
+  for (let hundredths = MAX_LITERS * 100; hundredths >= 1; hundredths--) {
+    const liters = hundredths / 100;
+    if ((mode === "gross" ? price * liters : cash(liters)) <= amount + 1e-9) return liters;
+  }
+  return null;
+}
+
+export function rankComparison(quotes: QuoteResult[]) {
+  const ranked = sortQuotesByPrice(quotes);
+  const best = ranked[0]?.totalHkd;
+  return quotes.map((quote) => ({ ...quote, isWinner: Math.round(quote.totalHkd * 100) === Math.round(best * 100),
+    savingVsWinnerHkd: quote.totalHkd - best }));
 }
 
 export function calculateQuotes(
@@ -198,49 +265,16 @@ export function calculateQuotes(
   live: LivePrices,
   snapshot: CityPriceSnapshot,
 ): QuoteResult[] {
-  const liters = Math.max(0.1, finite(config.liters));
-  const fx = Math.max(0.01, finite(config.fx));
-  const cards = live.cards.length ? live.cards : fallbackCards;
-  const coupons = live.coupons.length ? live.coupons : fallbackCoupons;
-  const tollHkd =
-    promotions.toll.rmbPerCrossing * promotions.toll.crossings * fx;
-
-  const shellBase = config.hkShell.manualPrice ?? live.shell[config.hkShell.fuel];
-  const shellDay = shellOfferDay(config.date, config.hkShell.offerDay);
-  const shellRule = promotions.hkShell.offers[config.hkShell.fuel][shellDay];
-  const shellDiscount = finite(
-    config.hkShell.includePoints ? shellRule.allIn : shellRule.cash,
-  );
-  const shellAfter = Math.max(0, (shellBase - shellDiscount) * liters);
-  const shellVoucher =
-    config.hkShell.couponMin > 0 && shellAfter >= config.hkShell.couponMin
-      ? config.hkShell.couponValue
-      : 0;
-  const shellFinal = money(
-    (shellAfter - shellVoucher) * (1 - config.hkShell.rebatePercent / 100),
-  );
-
-  const { card, coupon } = cardAndCoupon(config, cards, coupons);
-  const caltexBase = config.hkCaltex.manualPrice ?? live.caltex[config.hkCaltex.fuel];
-  const cardDiscount =
-    config.hkCaltex.fuel === "standard"
-      ? card.standardDiscount
-      : card.premiumDiscount;
-  const discountedCaltex = Math.max(0, caltexBase - cardDiscount);
-  let caltexFinal = discountedCaltex * liters;
-  let caltexUsable = 0;
-  let caltexRest = liters;
-  if (coupon && coupon.spend > 0) {
-    const perCouponLiters = coupon.spend / caltexBase;
-    caltexUsable = Math.floor(
-      (liters * caltexBase + 0.005 * caltexBase) / coupon.spend,
-    );
-    caltexRest = Math.max(0, liters - caltexUsable * perCouponLiters);
-    const paidLiters =
-      caltexUsable * ((coupon.spend - coupon.discount) / caltexBase) + caltexRest;
-    caltexFinal = paidLiters * discountedCaltex;
-  }
-  caltexFinal = money(caltexFinal * (1 - config.hkCaltex.rebatePercent / 100));
+  const liters = Math.min(MAX_LITERS, Math.max(MIN_LITERS, finite(config.liters)));
+  const { fx, tollHkd, shellBase, shellRule, shellCash, coupon, perCoupon, couponCount, caltexBase, cardDiscount,
+    caltexCash, gdShellCity, shellCityPrice, gdShellBase, shellDiscountAmount, gdRate, gdCash } = fuelCosts(config, live, snapshot);
+  const shellFinal = shellCash(liters);
+  const points = config.hkShell.includePoints ? money(shellRule.allIn - shellRule.cash) * liters : 0;
+  const shellEquivalent = money(shellFinal * rebateFactor(config.hkShell.rebatePercent) - points);
+  const caltexFinal = caltexCash(liters);
+  const caltexUsable = couponCount(liters);
+  const caltexRest = caltexUsable ? money(liters - caltexUsable * perCoupon) : liters;
+  const caltexEquivalent = caltexFinal * rebateFactor(config.hkCaltex.rebatePercent);
 
   const cnpcBase = config.hkCnpc.manualPrice ?? live.cnpc;
   const cnpcDiscount = config.hkCnpc.eligible
@@ -265,14 +299,8 @@ export function calculateQuotes(
     : 0;
   const sinohkFinal = money((sinohkBase - sinohkDiscount) * liters);
 
-  const gdShellCity = resolveCity(config.gdShell.binding, config.globalCity);
-  const shellCityPrice = cityPrice(gdShellCity, snapshot);
-  const gdShellBase =
-    config.gdShell.manualPrice?.value ?? shellCityPrice.price;
-  const shellDiscountAmount = getGdShellDiscount(config.date);
-  const gdShellRmb = Math.max(0, (gdShellBase - shellDiscountAmount) * liters);
-  const gdShellFinal =
-    gdShellRmb * fx + (config.gdShell.includeToll ? tollHkd : 0);
+  const gdShellRmb = gdRate * liters;
+  const gdShellFinal = gdCash(liters);
 
   const gdSinopecCity = resolveCity(config.gdSinopec.binding, config.globalCity);
   const sinoCityPrice = cityPrice(gdSinopecCity, snapshot);
@@ -333,36 +361,36 @@ export function calculateQuotes(
   const results: QuoteResult[] = [
     make(
       "hk-shell",
-      "香港 Shell",
+      config.hkShell.fuel === "premium" ? "香港 Shell V-Power" : "香港 Shell FuelSave",
       "Shell",
       "#facc15",
       shellFinal,
       shellBase * liters,
-      live.loaded ? "api" : "fallback",
-      live.loaded ? "香港油價公開資料" : "內建備用價",
+      hkPriceScope(config.hkShell.manualPrice, live, "shell", config.hkShell.fuel),
+      hkPriceLabel(config.hkShell.manualPrice, live, "shell", config.hkShell.fuel),
       undefined,
-      live.loaded ? "live" : "fallback",
-      live.updatedAt,
+      hkPriceScope(config.hkShell.manualPrice, live, "shell", config.hkShell.fuel) === "api" ? "live" : hkPriceScope(config.hkShell.manualPrice, live, "shell", config.hkShell.fuel) === "manual" ? "manual" : "fallback",
+      hkPriceScope(config.hkShell.manualPrice, live, "shell", config.hkShell.fuel) === "api" ? live.updatedAt : undefined,
       undefined,
       shellBase * liters - shellFinal,
       [
         { label: "牌價", value: `HK$ ${shellBase.toFixed(2)}/L` },
-        { label: "直減", value: `HK$ ${shellDiscount.toFixed(2)}/L` },
+        { label: "直減", value: `HK$ ${shellRule.cash.toFixed(2)}/L` },
         { label: "實付", value: `HK$ ${(shellFinal / liters).toFixed(2)}/L` },
       ],
     ),
     make(
       "hk-caltex",
-      "香港加德士",
+      config.hkCaltex.fuel === "premium" ? "香港加德士白金" : "香港加德士黃金",
       "加德士",
       "#ef4444",
       caltexFinal,
       caltexBase * liters,
-      live.loaded ? "api" : "fallback",
-      live.loaded ? "卡券資料已同步" : "內建卡券",
+      hkPriceScope(config.hkCaltex.manualPrice, live, "caltex", config.hkCaltex.fuel),
+      hkPriceLabel(config.hkCaltex.manualPrice, live, "caltex", config.hkCaltex.fuel),
       undefined,
-      live.loaded ? "live" : "fallback",
-      live.updatedAt,
+      hkPriceScope(config.hkCaltex.manualPrice, live, "caltex", config.hkCaltex.fuel) === "api" ? "live" : hkPriceScope(config.hkCaltex.manualPrice, live, "caltex", config.hkCaltex.fuel) === "manual" ? "manual" : "fallback",
+      hkPriceScope(config.hkCaltex.manualPrice, live, "caltex", config.hkCaltex.fuel) === "api" ? live.updatedAt : undefined,
       undefined,
       caltexBase * liters - caltexFinal,
       [
@@ -419,8 +447,8 @@ export function calculateQuotes(
     ),
     make(
       "gd-shell",
-      "廣東 Shell",
-      "粵 Shell",
+      `${CITY_LABELS[gdShellCity]} Shell 98#`,
+      `${CITY_LABELS[gdShellCity]} Shell`,
       "#10b981",
       gdShellFinal,
       gdShellBase * liters * fx,
@@ -430,7 +458,7 @@ export function calculateQuotes(
       gdPriceScope(config.gdShell.manualPrice, shellCityPrice.source),
       config.gdShell.manualPrice
         ? undefined
-        : snapshot.updated_hkt,
+        : snapshot.cities[citySnapshotKey(gdShellCity)]?.price_date ?? snapshot.updated_hkt,
       config.gdShell.binding.mode,
       gdShellBase * liters * fx - gdShellRmb * fx,
       [
@@ -483,12 +511,25 @@ export function calculateQuotes(
     "hk-shell": shellDateRuleLabel(config.date, config.hkShell.offerDay),
     "hk-cnpc": cnpcDateRuleLabel(config.date, config.hkCnpc.discountOverride),
     "hk-sinopec": hkSinopecDateRuleLabel(config.date, config.hkSinopec),
-    "gd-shell": gdShellDateRuleLabel(config.date),
+    "gd-shell": config.gdShell.discountOverride === undefined ? gdShellDateRuleLabel(config.date) : "手動套用優惠",
   };
   return results.map((quote) => ({
     ...quote,
+    cashHkd: quote.totalHkd,
+    equivalentHkd: quote.stationId === "hk-shell" ? shellEquivalent : quote.stationId === "hk-caltex" ? caltexEquivalent : quote.totalHkd,
     dateRuleLabel: dateRules[quote.stationId],
   }));
+}
+
+const rebateFactor = (percent: number) => 1 - Math.min(100, money(percent)) / 100;
+
+function hkPriceScope(manual: number | undefined, live: LivePrices, brand: "shell" | "caltex", fuel: "standard" | "premium") {
+  return manual !== undefined ? "manual" : live.loaded && !live.fallbackGrades?.[brand]?.includes(fuel) ? "api" : "fallback";
+}
+
+function hkPriceLabel(...args: Parameters<typeof hkPriceScope>) {
+  const scope = hkPriceScope(...args);
+  return scope === "manual" ? "手動價格" : scope === "api" ? "香港公開牌價" : "內建備用價";
 }
 
 function gdDisplayCity(

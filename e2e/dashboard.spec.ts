@@ -1,99 +1,78 @@
 import { expect, test } from "@playwright/test";
 
-test("六站首頁預設珠海並可切換深圳", async ({ page }, testInfo) => {
+test.beforeEach(async ({ page }) => {
+  await page.route("https://hkg-deadline.github.io/**", async (route) => {
+    if (!route.request().url().endsWith("petrolprice.json")) return route.fulfill({ json: {} });
+    return route.fulfill({ json: [
+      { type: "Standard Petrol", price: { Shell: "34.52", Caltex: "34.72" } },
+      { type: "Premium Petrol", price: { Shell: "34.52", Caltex: "36.52" } },
+    ] });
+  });
+  await page.route("https://open.er-api.com/**", (route) => route.fulfill({ json: { base_code: "CNY", rates: { HKD: 1.08 } } }));
+});
+
+test("三站首頁、車款捷徑、手機固定摘要及單頁 PDF", async ({ page }, testInfo) => {
   await page.goto("./");
-  await expect(page.getByRole("heading", { name: "粵港六站油價及油卡比價" })).toBeVisible();
-  await expect(page.getByLabel("全域大陸城市")).toHaveValue("zhuhai");
-  if (testInfo.project.name === "mobile") {
-    await expect(page.getByText("手機版 · 最抵三強")).toBeVisible();
-    await expect(page.getByText("電腦版 · 六站總覽")).toBeHidden();
-    await expect(page.locator(".station-card")).toHaveCount(3);
-    const toggle = page.locator('button[aria-controls="station-results"]');
-    await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await toggle.click();
-    await expect(page.locator(".station-card")).toHaveCount(6);
-    await expect(toggle).toHaveAttribute("aria-expanded", "true");
-    await page.evaluate(() => window.scrollTo(0, 500));
-    const sticky = page.locator(".sticky-summary");
+  await expect(page.getByRole("heading", { name: "粵港三站油價比價" })).toBeVisible();
+  await expect(page.locator(".station-card")).toHaveCount(3);
+  await expect(page.getByRole("button", { name: /中石化|中石油/ })).toHaveCount(0);
+  await page.getByRole("button", { name: /大霸王/ }).click();
+  await expect(page.getByLabel("入油升數（L）")).toHaveValue("65");
+  await page.getByLabel("計入來回路費 ¥285").uncheck();
+  await expect(page.locator(".decision")).toContainText("未計路費");
+  const sticky = page.locator(".sticky-summary");
+  if (testInfo.project.name === "desktop") await expect(sticky).toBeHidden();
+  else {
     await expect(sticky).toBeVisible();
-    await expect(sticky).toContainText(/HK\$\d+\.\d{2}/);
-  } else {
-    await expect(page.getByText("電腦版 · 六站總覽")).toBeVisible();
-    await expect(page.getByText("手機版 · 最抵三強")).toBeHidden();
-    await expect(page.locator(".station-card")).toHaveCount(6);
+    await expect(sticky.locator("strong")).toHaveCount(3);
+    await page.getByLabel("入油升數（L）").focus();
+    await expect(sticky).toBeHidden();
   }
-
-  await page.getByLabel("全域大陸城市").selectOption("shenzhen");
-  await expect(page.locator(".station-card")).not.toHaveCount(0);
-  await expect(page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).resolves.toBeTruthy();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= visualViewport!.width)).toBe(true);
+  await expect(page.locator('meta[name="viewport"]')).not.toHaveAttribute("content", /maximum-scale|user-scalable=no/);
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".print-summary")).toContainText("珠海不計路費");
+  await expect(page.locator(".station-card").first()).toBeHidden();
+  if (testInfo.project.name === "desktop") {
+    const pdf = await page.pdf({ preferCSSPageSize: true });
+    expect(pdf.toString("latin1").match(/\/Type\s*\/Page\b/g)).toHaveLength(1);
+  }
 });
 
-test("廣東中石化可獨立覆寫城市並打開詳情", async ({ page }, testInfo) => {
+test("油品切換、券數反算與珠海快捷鍵各自更新", async ({ page }) => {
   await page.goto("./");
-  if (testInfo.project.name === "mobile") {
-    await page.evaluate(() => window.scrollTo(0, 500));
-    await expect(page.locator(".sticky-summary")).toBeVisible();
-  }
-  const card = page.locator(".station-card").filter({ hasText: "廣東中石化" });
-  await card.getByRole("button", { name: "廣東中石化詳情" }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await expect(page.locator(".sticky-summary")).toHaveCount(0);
-  if (testInfo.project.name === "mobile") {
-    await expect(page.locator(".sheet-handle")).toBeVisible();
-    const viewport = page.viewportSize()!;
-    await expect
-      .poll(async () => {
-        const box = await dialog.boundingBox();
-        return box ? Math.abs(box.y + box.height - viewport.height) : 999;
-      })
-      .toBeLessThan(3);
-  } else {
-    await expect(page.locator(".sheet-handle")).toBeHidden();
-    const viewport = page.viewportSize()!;
-    await expect
-      .poll(async () => {
-        const box = await dialog.boundingBox();
-        return box
-          ? Math.abs(box.y + box.height / 2 - viewport.height / 2)
-          : 999;
-      })
-      .toBeLessThan(12);
-  }
-  await dialog.getByLabel("大陸城市").selectOption("shenzhen");
+  await page.getByRole("button", { name: "香港 Shell V-Power詳情" }).click();
+  let dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Shell 牌價")).toHaveValue("36.32");
+  await dialog.getByRole("button", { name: "FuelSave" }).click();
+  await expect(dialog.getByLabel("Shell 牌價")).toHaveValue("34.52");
+  await dialog.getByRole("button", { name: "V-Power" }).click();
+  await expect(dialog.getByLabel("Shell 牌價")).toHaveValue("36.32");
   await dialog.getByRole("button", { name: "關閉" }).click();
-  const updatedCard = page.locator(".station-card").filter({ hasText: "廣東中石化" });
-  await expect(updatedCard).toContainText("已自訂 · 深圳");
-  await expect(updatedCard).toContainText("城市快照");
+  await page.getByRole("button", { name: "香港加德士白金詳情" }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel("入油目標").selectOption("coupons");
+  await dialog.getByLabel("張數").fill("2");
+  await dialog.getByRole("button", { name: "套用升數" }).click();
+  await expect(dialog.getByRole("status")).toHaveText("已套用 19.17 L");
+  await dialog.getByLabel("加德士油券算法").click();
+  await expect(dialog.getByText(/並非在卡後金額/)).toBeVisible();
+  await dialog.getByRole("button", { name: "關閉" }).click();
+  await page.getByLabel("加油日期").fill("2026-11-28");
+  await expect(page.locator(".station-card").filter({ hasText: "珠海 Shell" })).toContainText("日期優惠取較大");
+  await page.getByRole("button", { name: "珠海 Shell 98#詳情" }).click();
+  dialog = page.getByRole("dialog");
+  const price = dialog.getByLabel("廣東 Shell 98# 牌價");
+  await price.fill("12.34");
+  await dialog.getByRole("button", { name: /週三／六減/ }).click();
+  await expect(price).toHaveValue("12.34");
 });
 
-test("日期變更會自動重新校準優惠", async ({ page }, testInfo) => {
-  await page.goto("./");
-  const automatic = page.getByRole("checkbox", { name: "自動今日" });
-  const initialDate = await page.getByLabel("加油日期").inputValue();
-  await expect(automatic).toBeChecked();
-  if (testInfo.project.name === "mobile") {
-    await page.getByRole("button", { name: "查看其餘 3 站" }).click();
-  }
-  await page.getByLabel("加油日期").fill("2026-11-18");
-  await expect(automatic).not.toBeChecked();
-  await expect(
-    page.locator(".station-card").filter({ hasText: "香港中石油" }),
-  ).toContainText("星期三直減");
-  await expect(
-    page.locator(".station-card").filter({ hasText: "香港中石化" }),
-  ).toContainText("星期三升級優惠");
-  await expect(
-    page.locator(".station-card").filter({ hasText: "廣東 Shell" }),
-  ).toContainText("日期優惠取較大");
-  await automatic.check();
-  await expect(automatic).toBeChecked();
-  await expect(page.getByLabel("加油日期")).toHaveValue(initialDate);
-});
-
-test("經典路由與 reduced motion 可用", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
+test("經典路由與淺色主題可用", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.goto("./?view=classic");
   await expect(page.getByRole("heading", { name: "香港加德士 × 廣東 Shell" })).toBeVisible();
   await expect(page.locator(".station-card")).toHaveCount(2);
+  await page.getByRole("button", { name: "切換至淺色主題" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });

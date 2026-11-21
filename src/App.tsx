@@ -36,11 +36,11 @@ function AppFrame() {
           <span className="brand-mark" aria-hidden="true" />
           <span>
             <strong>粵港油價比價</strong>
-            <small>六站 · 三城 · 即時決策</small>
+            <small>三站 · 98 號油價對比</small>
           </span>
         </Link>
         <nav aria-label="主要導覽">
-          <Link to="/">六站比較</Link>
+          <Link to="/">三站比較</Link>
           <Link to="/classic">經典比較</Link>
         </nav>
         <button

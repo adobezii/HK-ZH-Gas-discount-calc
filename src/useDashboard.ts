@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { calculateQuotes } from "./calc";
+import { calculateQuotes, HOME_STATIONS, minimumBreakEven, rankComparison } from "./calc";
 import {
   citySnapshot,
   createDefaultConfig,
@@ -8,6 +8,7 @@ import {
 } from "./data";
 import {
   fallbackLivePrices,
+  fetchFxRate,
   fetchLivePrices,
 } from "./livePrices";
 import { clearConfig, loadConfig, saveConfig } from "./storage";
@@ -19,6 +20,7 @@ export function useDashboard() {
   const [config, setConfig] = useState<DashboardConfig>(loadConfig);
   const [live, setLive] = useState<LivePrices>(fallbackLivePrices);
   const [status, setStatus] = useState<LiveStatus>("idle");
+  const [fxAsOf, setFxAsOf] = useState<string>();
 
   useEffect(() => {
     saveConfig(config);
@@ -60,14 +62,28 @@ export function useDashboard() {
     void refreshLive();
   }, []);
 
+  useEffect(() => {
+    if (config.fxMode === "manual") return;
+    let active = true;
+    const refresh = () => void fetchFxRate().then(({ rate, effectiveAt }) => {
+      if (!active) return;
+      setConfig((current) => current.fxMode === "manual" ? current : { ...current, fx: rate });
+      setFxAsOf(effectiveAt);
+    }).catch(() => {});
+    refresh();
+    const timer = window.setInterval(refresh, 60 * 60_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [config.fxMode]);
+
   const quotes = useMemo(
-    () => calculateQuotes(config, live, citySnapshot),
+    () => rankComparison(calculateQuotes(config, live, citySnapshot).filter((quote) => HOME_STATIONS.includes(quote.stationId))),
     [config, live],
   );
   const best = useMemo(
     () => quotes.reduce((winner, item) => (item.totalHkd < winner.totalHkd ? item : winner)),
     [quotes],
   );
+  const breakEven = useMemo(() => minimumBreakEven(config, live, citySnapshot), [config, live]);
 
   return {
     config,
@@ -76,6 +92,8 @@ export function useDashboard() {
     status,
     quotes,
     best,
+    breakEven,
+    fxAsOf,
     refreshLive,
     setManualDate: (date: string) => {
       setConfig((current) => ({

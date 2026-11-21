@@ -1,4 +1,5 @@
 import { CITY_OPTIONS } from "../types";
+import { MAX_LITERS, MIN_LITERS } from "../calc";
 import type { DashboardModel } from "../useDashboard";
 
 interface Props {
@@ -15,16 +16,17 @@ export function Controls({ model }: Props) {
         <input
           className="input"
           type="number"
-          min="1"
-          max="100"
-          step="0.5"
-          value={config.liters}
+          min={MIN_LITERS}
+          max={MAX_LITERS}
+          step="0.01"
+          value={config.liters || ""}
           onChange={(event) =>
             setConfig({
               ...config,
-              liters: Math.max(1, Number(event.target.value) || 1),
+              liters: Math.min(MAX_LITERS, Math.max(0, Number(event.target.value))),
             })
           }
+          onBlur={() => { if (config.liters < MIN_LITERS) setConfig({ ...config, liters: MIN_LITERS }); }}
         />
       </label>
       <label className="field">
@@ -39,9 +41,11 @@ export function Controls({ model }: Props) {
             setConfig({
               ...config,
               fx: Math.max(0.01, Number(event.target.value) || 1),
+              fxMode: "manual",
             })
           }
         />
+        {config.fxMode === "manual" ? <button className="button subtle pressable" type="button" onClick={() => setConfig({ ...config, fxMode: "auto" })}>恢復自動匯率</button> : null}
       </label>
       <label className="field">
         <span>全域大陸城市</span>
@@ -86,6 +90,18 @@ export function Controls({ model }: Props) {
           onChange={(event) => model.setManualDate(event.target.value)}
         />
       </div>
+      <div className="vehicle-presets field">
+        <span>亮油燈後參考油量</span>
+        <div className="inline-actions">
+          {[["大霸王", 65], ["BMW M5 (F10)", 70], ["BMW 640i (F06)", 60]].map(([name, liters]) => (
+            <button key={name} className="button subtle pressable" type="button" onClick={() => setConfig({ ...config, liters: Number(liters) })}>{name} · {liters} L</button>
+          ))}
+        </div>
+      </div>
+      <label className="checkbox-row toll-toggle">
+        <input type="checkbox" checked={config.gdShell.includeToll} onChange={(event) => setConfig({ ...config, gdShell: { ...config.gdShell, includeToll: event.target.checked } })} />
+        計入來回路費 ¥285
+      </label>
       <div className="inline-actions">
         <button
           className="button subtle pressable"

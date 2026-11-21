@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""粵港六站油價比較器（Streamlit）。
+"""港珠三站油價比較器（Streamlit）。
 
 執行：streamlit run fuel_calc.py
 """
@@ -30,10 +30,10 @@ from gas_dashboard import (
     load_promotions,
 )
 
-st.set_page_config(page_title="粵港六站油價比較", page_icon="⛽", layout="wide")
+st.set_page_config(page_title="港珠三站油價比較", page_icon="⛽", layout="wide")
 
-PROMOTIONS = load_promotions()
 CITIES = list(CITY_LABELS.items())
+PROMOTIONS = load_promotions()
 
 st.markdown(
     """
@@ -87,29 +87,25 @@ st.markdown(
 @st.cache_data(ttl=3600)
 def get_hk_data() -> dict[str, Any]:
     fallback = fallback_hk_data()
+    brands: dict[str, dict[str, float]] = {}
     try:
-        prices, cards, coupons = fetch_hk_prices()
-        return {
-            "loaded": True,
-            "updated_at": datetime.now().astimezone().isoformat(),
-            "shell": {
-                "premium": prices["premium"],
-                "standard": prices["standard"],
-            },
-            "caltex": {
-                "premium": prices["premium"],
-                "standard": prices["standard"],
-            },
-            "cnpc": prices["premium"],
-            "sinopec": {
-                "premium": prices["premium"],
-                "standard": prices["standard"],
-            },
-            "cards": cards,
-            "coupons": coupons,
-        }
+        _, cards, coupons = fetch_hk_prices(brand_prices=brands)
     except Exception:
         return fallback
+    shell = brands.get("Shell", {})
+    if shell.get("premium") == shell.get("standard"):
+        shell.pop("premium", None)
+    caltex = brands.get("Caltex", {})
+    return {
+        **fallback,
+        "loaded": bool(shell or caltex),
+        "updated_at": datetime.now(ZoneInfo("Asia/Hong_Kong")).isoformat(),
+        "shell": {**fallback["shell"], **shell},
+        "caltex": {**fallback["caltex"], **caltex},
+        "live_grades": {"shell": set(shell), "caltex": set(caltex)},
+        "cards": cards,
+        "coupons": coupons,
+    }
 
 
 @st.cache_data(ttl=3600)
@@ -136,7 +132,9 @@ def manual_price_input(
 ) -> None:
     enabled = st.checkbox(
         f"手動輸入{label}",
-        value=config["manual_price"] is not None,
+        value=config["manual_price"] is not None and not (
+            isinstance(config["manual_price"], dict) and config["manual_price"].get("scope") == "province"
+        ),
         key=f"{key}_on",
     )
     if enabled:
@@ -158,7 +156,7 @@ def manual_price_input(
             if structured
             else value
         )
-    else:
+    elif not isinstance(config["manual_price"], dict) or config["manual_price"].get("scope") != "province":
         config["manual_price"] = None
 
 
@@ -183,7 +181,6 @@ def city_binding_control(config: dict[str, Any], key: str) -> None:
 
 with st.sidebar:
     st.header("全域條件")
-    st.caption("兩個廣東方案預設跟隨全域城市，可個別覆寫。")
     selected_city = st.selectbox(
         "大陸城市",
         [value for value, _ in CITIES],
@@ -305,8 +302,8 @@ with st.sidebar:
                         "label": "廣東全省 API",
                     }
                 st.success(f"廣東全省 98#：¥{price:.2f}/L")
-        except Exception as exc:
-            st.error(f"抓取失敗：{exc}")
+        except Exception:
+            st.error("抓取失敗；請確認憑證及來源是否提供廣東 98# 價格。")
 
     if st.button("重設全部設定", use_container_width=True):
         st.session_state.dashboard = default_state()
@@ -314,95 +311,40 @@ with st.sidebar:
 
 hk_data = get_hk_data()
 quotes = build_quotes(state, hk_data=hk_data, snapshot=snapshot)
-winner = min(quotes, key=lambda item: item["total"])
-
 st.title("粵港六站油價及油卡比價")
 st.caption(
-    f"{state['date']}｜{state['liters']:.1f}L｜"
-    f"1¥ = HK${state['fx']:.4f}｜全域城市：{CITY_LABELS[state['global_city']]}｜"
-    f"日期校準：{'自動今日' if state['date_mode'] == 'auto' else '手動指定'}"
-)
-hk_status = (
-    f"香港公開價 {datetime.fromisoformat(hk_data['updated_at']).strftime('%H:%M')}"
-    if hk_data.get("loaded") and hk_data.get("updated_at")
-    else "香港備用價"
-)
-gd_scopes = sorted({item["price_scope"] for item in quotes if item["city_mode"]})
-scope_names = {
-    "city": "城市快照",
-    "province": "廣東全省 API",
-    "manual": "手動價格",
-    "fallback": "備用價",
-}
-scope_text = " · ".join(scope_names.get(scope, scope) for scope in gd_scopes)
-st.markdown(
-    f'<div class="status-line">{hk_status}　·　城市快照 {snapshot.get("updated_hkt", "—")}'
-    f'　·　大陸資料 {scope_text or "未載入"}</div>',
-    unsafe_allow_html=True,
+    f"{state['date']}｜{state['liters']:.1f}L｜1¥ = HK${state['fx']:.4f}｜"
+    f"城市：{CITY_LABELS[state['global_city']]}"
 )
 
-metric_cols = st.columns(4)
-metric_cols[0].metric(
-    "全場最抵", winner["name"], f"HK$ {winner['unit_price']:.2f}/L"
-)
-metric_cols[1].metric("最抵總額", f"HK$ {winner['total']:.2f}")
-second = min(
-    (item for item in quotes if item["station_id"] != winner["station_id"]),
-    key=lambda item: item["total"],
-)
-metric_cols[2].metric("領先次選", f"HK$ {second['total'] - winner['total']:.2f}")
-metric_cols[3].metric(
-    "香港資料", "即時／公開" if hk_data.get("loaded") else "內建備用"
-)
 
-ranked_quotes = sorted(quotes, key=lambda item: item["total"])
-show_all = st.toggle("查看其餘三站", value=False)
-display_quotes = ranked_quotes if show_all else ranked_quotes[:3]
+def render_results():
+    quotes = build_quotes(state, hk_data=hk_data, snapshot=snapshot)
+    with results:
+        render_comparison(quotes)
 
-st.subheader("六站結果" if show_all else "最抵三強")
-for start in range(0, len(display_quotes), 3):
-    cols = st.columns(3)
-    for column, item in zip(cols, display_quotes[start : start + 3]):
+
+def render_comparison(quotes):
+    winner = min(quotes, key=lambda item: item["total"])
+    st.title("港珠三站油價比較")
+    st.caption(f"{state['date']}｜{state['liters']:.2f} L｜1¥ = HK${state['fx']:.4f}")
+    st.caption(f"城市價格快照：{snapshot.get('updated_hkt', '—')}；並非油站即時牌價。")
+    st.metric("即場實付最抵", winner["name"], f"HK$ {winner['unit_price']:.2f}/L")
+    for column, item in zip(st.columns(3), quotes):
         with column:
-            rank = ranked_quotes.index(item) + 1
-            winner_class = " winner" if item["is_winner"] else ""
-            winner_chip = (
-                '<span class="winner-chip">最低</span>'
-                if item["is_winner"]
-                else ""
-            )
-            city = f" · {CITY_LABELS[item['city']]}" if item["city"] else ""
-            mode = ""
-            if item["city_mode"]:
-                mode = (
-                    f'<span class="scope-chip">'
-                    f'{"已自訂" if item["city_mode"] == "override" else "跟隨全域"}'
-                    f"{city}</span>"
-                )
-            scope = {
-                "city": "城市快照",
-                "province": "廣東全省 API",
-                "manual": "手動價格",
-                "fallback": "備用價",
-                "live": "香港公開價",
-            }.get(item["price_scope"], item["price_scope"])
-            date_rule = (
-                f'<span class="scope-chip">{item["date_rule_label"]}</span>'
-                if item.get("date_rule_label")
-                else ""
-            )
-            st.markdown(
-                f"""
-                <div class="station-card{winner_class}" style="--station-accent:{item['accent']}">
-                  <div class="station-kicker">{rank}. {item['source_label']}</div>
-                  <div class="station-title">{item['name']}{winner_chip}</div>
-                  <div>{mode}<span class="scope-chip">{scope}</span>{date_rule}</div>
-                  <div class="station-price">HK$ {item['unit_price']:.2f}<small> / L</small></div>
-                  <div class="station-total">本次總額 HK$ {item['total']:.2f}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.subheader(item["name"])
+            st.metric("即場實付", f"HK$ {item['unit_price']:.2f}/L")
+            st.write(f"總額 HK$ {item['total']:.2f}")
+            if item['equivalent_total'] < item['total']:
+                st.caption(f"回贈後等效總額 HK$ {item['equivalent_total']:.2f}")
+            st.caption(item['source_label'])
+    st.subheader("分享摘要")
+    lines = [f"港珠三站油價｜{state['date']}｜{state['liters']:.2f} L｜1¥ = HK${state['fx']:.4f}"]
+    lines += [f"{item['name']}：HK${item['unit_price']:.2f}/L，總額 HK${item['total']:.2f}" for item in quotes]
+    lines.append(f"即場實付最抵：{winner['name']}")
+    st.code("\n".join(lines), language=None)
+    st.caption("價格及優惠僅供參考，以油站實際交易為準。")
+
 
 st.subheader("方案設定")
 with st.expander("香港 Shell"):

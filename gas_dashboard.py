@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -210,7 +211,7 @@ def _caltex_card_coupon(
         if coupon.get("validFor") and config["fuel"] not in coupon["validFor"]:
             continue
         valid.append(coupon)
-    selected = next((item for item in valid if item["id"] == config["coupon_id"]), valid[0] if valid else None)
+    selected = next((item for item in valid if item["id"] == config["coupon_id"]), None)
     return card, selected
 
 
@@ -283,7 +284,7 @@ def build_quotes(
     promotions = load_promotions()
     data = hk_data or fallback_hk_data()
     city_data = snapshot or load_city_snapshot()
-    liters = max(0.1, float(state["liters"]))
+    liters = min(100.0, max(0.01, float(state["liters"])))
     fx = max(0.01, float(state["fx"]))
     toll_hkd = promotions["toll"]["rmbPerCrossing"] * promotions["toll"]["crossings"] * fx
 
@@ -294,14 +295,16 @@ def build_quotes(
     if offer_day == "auto":
         offer_day = "wed" if weekday == 2 else "weekend" if weekday in (5, 6) else "weekday"
     shell_rule = promotions["hkShell"]["offers"][shell["fuel"]][offer_day]
-    shell_discount = shell_rule["allIn"] if shell["include_points"] else shell_rule["cash"]
+    shell_discount = shell_rule["cash"]
     shell_after = max(0.0, (shell_base - shell_discount) * liters)
     shell_voucher = (
         shell["coupon_value"]
         if shell["coupon_min"] > 0 and shell_after >= shell["coupon_min"]
         else 0.0
     )
-    shell_final = max(0.0, (shell_after - shell_voucher) * (1 - shell["rebate_percent"] / 100))
+    shell_final = max(0.0, shell_after - shell_voucher)
+    points = max(0.0, shell_rule["allIn"] - shell_discount) * liters if shell["include_points"] else 0.0
+    shell_equivalent = max(0.0, shell_final * (1 - min(100, max(0, shell["rebate_percent"])) / 100) - points)
 
     card, coupon = _caltex_card_coupon(state, data["cards"], data["coupons"])
     caltex = state["hk_caltex"]
@@ -311,13 +314,15 @@ def build_quotes(
     caltex_final = discounted_caltex * liters
     usable = 0
     rest = liters
-    if coupon and coupon["spend"] > 0:
+    if coupon and 0 <= coupon["discount"] < coupon["spend"] and caltex_base > 0:
         per_coupon = coupon["spend"] / caltex_base
-        usable = int((liters * caltex_base + 0.005 * caltex_base) // coupon["spend"])
+        usable = math.floor(liters / per_coupon)
+        if caltex.get("coupon_limit") is not None:
+            usable = min(usable, max(0, int(caltex["coupon_limit"])))
         rest = max(0.0, liters - usable * per_coupon)
         paid_liters = usable * ((coupon["spend"] - coupon["discount"]) / caltex_base) + rest
         caltex_final = paid_liters * discounted_caltex
-    caltex_final = max(0.0, caltex_final * (1 - caltex["rebate_percent"] / 100))
+    caltex_equivalent = caltex_final * (1 - min(100, max(0, caltex["rebate_percent"])) / 100)
 
     cnpc = state["hk_cnpc"]
     cnpc_base = cnpc["manual_price"] or data["cnpc"]
@@ -410,6 +415,7 @@ def build_quotes(
             "city": city,
             "unit_price": total / liters,
             "total": total,
+            "equivalent_total": {"hk-shell": shell_equivalent, "hk-caltex": caltex_equivalent}.get(station_id, total),
             "gross": gross,
             "saving": gross - total,
             "source": source,

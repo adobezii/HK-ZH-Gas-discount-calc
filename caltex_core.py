@@ -201,7 +201,7 @@ def fetch_cny_hkd_rate(timeout=5.0):
     return FALLBACK_CNY_HKD
 
 
-def fetch_hk_prices(timeout=6.0):
+def fetch_hk_prices(timeout=6.0, *, brand_prices=None):
     """抓取 hk-petrol-price-crawler 的牌價／折扣卡／油券；失敗回退備用值。
 
     回傳 (prices, cards, coupons)。
@@ -216,6 +216,17 @@ def fetch_hk_prices(timeout=6.0):
     try:
         with urllib.request.urlopen(base + "petrolprice.json", timeout=timeout) as resp:
             pp = json.loads(resp.read().decode("utf-8"))
+        if brand_prices is not None:
+            for item in pp:
+                grade = {"Standard Petrol": "standard", "Premium Petrol": "premium"}.get(item.get("type"))
+                if grade:
+                    for brand in ("Shell", "Caltex"):
+                        try:
+                            value = float(item.get("price", {}).get(brand, 0))
+                        except (TypeError, ValueError):
+                            continue
+                        if 0 < value < float("inf"):
+                            brand_prices.setdefault(brand, {})[grade] = value
         for item in pp:
             if item.get("type") == "Standard Petrol" and item.get("price", {}).get("Caltex"):
                 prices["standard"] = float(item["price"]["Caltex"])

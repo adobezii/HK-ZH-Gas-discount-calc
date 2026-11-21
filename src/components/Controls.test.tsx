@@ -8,6 +8,8 @@ import type { DashboardModel } from "../useDashboard";
 function model(): DashboardModel {
   const config = createDefaultConfig();
   return {
+    breakEven: null,
+    fxAsOf: undefined,
     config,
     setConfig: vi.fn(),
     live: {

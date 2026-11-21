@@ -32,6 +32,7 @@ export function withCalibratedDate(
     hkShell: { ...config.hkShell, offerDay: "auto" },
     hkCnpc: { ...config.hkCnpc, discountOverride: undefined },
     hkSinopec: { ...config.hkSinopec, discountOverride: undefined },
+    gdShell: { ...config.gdShell, discountOverride: undefined },
   };
 }
 
@@ -52,7 +53,7 @@ export function createDefaultConfig(): DashboardConfig {
       rebatePercent: 0,
     },
     hkCaltex: {
-      fuel: "standard",
+      fuel: "premium",
       cardId: fallbackCards[0].id,
       couponId: fallbackCoupons[0].id,
       rebatePercent: 0,

@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_run:
+    workflows: [Update CN fuel price snapshot]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -16,9 +20,13 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.sha }}
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
           version: 12

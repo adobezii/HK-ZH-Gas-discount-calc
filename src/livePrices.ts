@@ -27,6 +27,20 @@ function abortAfter(ms: number) {
   };
 }
 
+export async function fetchFxRate() {
+  const timeout = abortAfter(5000);
+  try {
+    const response = await fetch("https://open.er-api.com/v6/latest/CNY", { signal: timeout.signal });
+    if (!response.ok) throw new Error("匯率查詢失敗");
+    const data = await response.json();
+    const rate = data?.rates?.HKD;
+    if (data?.base_code !== "CNY" || typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) throw new Error("缺少有效港幣匯率");
+    return { rate, effectiveAt: typeof data.time_last_update_unix === "number" ? new Date(data.time_last_update_unix * 1000).toISOString() : undefined };
+  } finally {
+    timeout.clear();
+  }
+}
+
 export async function fetchLivePrices(): Promise<LivePrices> {
   const timeout = abortAfter(10_000);
   try {
@@ -66,21 +80,21 @@ export async function fetchLivePrices(): Promise<LivePrices> {
         ? (couponsJson as { coupons: CaltexCoupon[] }).coupons
         : fallbackCoupons;
 
+    const fallbackGrades: NonNullable<LivePrices["fallbackGrades"]> = {};
+    const brandPrices = (key: "Shell" | "Caltex", brand: "shell" | "caltex") => {
+      const regular = parse(standard.price[key], 0);
+      const extra = parse(premium.price[key], 0);
+      const validPremium = extra > 0 && (brand !== "shell" || extra !== regular);
+      fallbackGrades[brand] = [...(regular ? [] : ["standard" as const]), ...(validPremium ? [] : ["premium" as const])];
+      return { standard: regular || fallbackLivePrices[brand].standard, premium: validPremium ? extra : fallbackLivePrices[brand].premium };
+    };
     return {
       loaded: true,
       source: "crawler",
       updatedAt: new Date().toISOString(),
-      shell: {
-        standard: parse(standard.price.Shell, promotions.hkShell.prices.standard),
-        premium: parse(premium.price.Shell, promotions.hkShell.prices.premium),
-      },
-      caltex: {
-        standard: parse(
-          standard.price.Caltex,
-          promotions.caltex.standardPrice,
-        ),
-        premium: parse(premium.price.Caltex, promotions.caltex.premiumPrice),
-      },
+      fallbackGrades,
+      shell: brandPrices("Shell", "shell"),
+      caltex: brandPrices("Caltex", "caltex"),
       cnpc: parse(premium.price.PetroChina, promotions.hkCnpc.price),
       sinopec: {
         standard: parse(

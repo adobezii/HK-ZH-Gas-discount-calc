@@ -34,6 +34,7 @@ export interface CaltexConfig {
   fuel: "premium" | "standard";
   cardId: string;
   couponId: string;
+  couponLimit?: number;
   rebatePercent: number;
   manualPrice?: number;
 }
@@ -56,6 +57,7 @@ export interface GdShellConfig {
   binding: CityBinding;
   overrideCity: City;
   includeToll: boolean;
+  discountOverride?: number;
   manualPrice?: GdPriceOverride;
 }
 
@@ -78,6 +80,7 @@ export interface DashboardConfig {
   schemaVersion: 3;
   liters: number;
   fx: number;
+  fxMode?: "auto" | "manual";
   globalCity: City;
   date: string;
   dateMode: "auto" | "manual";
@@ -110,6 +113,7 @@ export interface LivePrices {
   loaded: boolean;
   source: "crawler" | "fallback";
   updatedAt?: string;
+  fallbackGrades?: Partial<Record<"shell" | "caltex", Array<"premium" | "standard">>>;
   shell: { premium: number; standard: number };
   caltex: { premium: number; standard: number };
   cnpc: number;
@@ -122,7 +126,8 @@ export interface CityPriceSnapshot {
   updated: string;
   updated_hkt: string;
   source: string;
-  cities: Record<string, { name: string; p98: number; stale?: boolean }>;
+  checked_at?: string;
+  cities: Record<string, { name: string; p98: number; stale?: boolean; price_date?: string; checked_at?: string }>;
 }
 
 export interface QuoteResult {
@@ -133,6 +138,8 @@ export interface QuoteResult {
   city?: City;
   unitPriceHkd: number;
   totalHkd: number;
+  cashHkd?: number;
+  equivalentHkd?: number;
   grossHkd: number;
   discountPerLiterHkd: number;
   source: QuoteSource;

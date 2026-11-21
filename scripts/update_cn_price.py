@@ -10,17 +10,19 @@
 - 價格需落在合理區間（見 MIN/MAX_PRICE），否則視為解析失敗。
 - 單一城市失敗時保留上一次的良好數值，不用壞資料覆蓋。
 - 全部城市都失敗則中止，不寫檔（保留舊快照）。
-- 若價格與檔案內完全相同，保留原本的 updated 時間戳，讓 git 不產生無意義提交。
+- 價格不變時保留資料日期，另外記錄最近成功查價時間。
 
 僅使用標準庫。
 """
 
+import argparse
 import datetime
 import html as _html
 import json
 import os
 import re
 import urllib.request
+from pathlib import Path
 
 SITE = "www.qiyoujiage.com"
 CITIES = {
@@ -88,10 +90,15 @@ def load_existing():
         return {}
 
 
-def main():
+def main(changelog=None):
     previous = load_existing()
     prev_cities = previous.get("cities") or {}
     cities = {}
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    hkt = now_utc.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
+    checked_at = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    today = hkt.date().isoformat()
+    successful = 0
 
     for path, name in CITIES.items():
         entry = None
@@ -99,7 +106,10 @@ def main():
             text = strip_tags(fetch_text(path))
             p98 = grab(text, "98")
             if p98 is not None:
-                entry = {"name": name, "p98": p98}
+                old = prev_cities.get(path, {})
+                price_date = (old.get("price_date") or previous.get("updated_hkt") or today) if old.get("p98") == p98 else today
+                entry = {"name": name, "p98": p98, "checked_at": checked_at, "price_date": price_date}
+                successful += 1
                 print(f"ok   {name}: 98# {p98}")
         except Exception as exc:  # 任一城市失敗不影響其他
             print(f"fail {name}: {exc}")
@@ -110,31 +120,46 @@ def main():
             if old and old.get("p98"):
                 entry = dict(old)
                 entry["stale"] = True
+                entry.setdefault("price_date", previous.get("updated_hkt"))
                 print(f"keep {name}: 沿用上次數值 {old.get('p98')}")
         if entry is not None:
             cities[path] = entry
 
-    if not cities:
+    if not successful:
         raise SystemExit("no data fetched; aborting (snapshot left unchanged)")
 
-    # 價格未變動時保留原 updated，避免每日產生無意義提交
+    # 價格未變動時保留資料日期；查價時間另行更新。
     def price_view(data):
         return {k: v.get("p98") for k, v in (data or {}).items()}
 
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
-    hkt = now_utc.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
     if price_view(cities) == price_view(prev_cities):
-        # 價格未變 → 沿用原本時間戳，讓檔案位元組不變、git 不產生提交
         updated = previous.get("updated") or ""
         updated_hkt = previous.get("updated_hkt") or hkt.strftime("%Y-%m-%d")
     else:
         updated = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
         updated_hkt = hkt.strftime("%Y-%m-%d")
 
-    payload = {"updated": updated, "updated_hkt": updated_hkt, "source": SITE, "cities": cities}
+    payload = {"updated": updated, "updated_hkt": updated_hkt, "checked_at": checked_at, "source": SITE, "cities": cities}
     if payload == previous:
         print("snapshot unchanged; nothing written")
         return
+
+    if changelog is not None:
+        content = changelog.read_text(encoding="utf-8")
+        intro, divider, history = content.partition("\n## ")
+        if not divider:
+            raise SystemExit("changelog has no entries; snapshot left unchanged")
+        zhuhai = cities.get("guangdong/zhuhai.shtml", {})
+        zhuhai_price = (
+            f"¥{zhuhai['p98']:.2f}/L{'（沿用）' if zhuhai.get('stale') else ''}"
+            if zhuhai else "未取得"
+        )
+        entry = (
+            f"\n## {today}｜內地 98# 油價快照\n\n"
+            f"- 香港時間 {hkt:%H:%M} 查價；{successful}/{len(CITIES)} 個地區成功，"
+            f"珠海參考價 {zhuhai_price}。\n"
+        )
+        changelog.write_text(intro + entry + divider + history, encoding="utf-8")
 
     os.makedirs(os.path.dirname(DATA_PATH) or ".", exist_ok=True)
     with open(DATA_PATH, "w", encoding="utf-8") as fh:
@@ -144,4 +169,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--changelog", type=Path)
+    main(parser.parse_args().changelog)

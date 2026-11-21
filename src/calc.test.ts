@@ -9,6 +9,8 @@ import {
   cnpcDateRuleLabel,
   shellDateRuleLabel,
   sortQuotesByPrice,
+  minimumBreakEven,
+  litersForTarget,
 } from "./calc";
 import { createDefaultConfig } from "./data";
 import { withCalibratedDate } from "./data";
@@ -92,6 +94,49 @@ describe("promotion rules", () => {
 });
 
 describe("quote costs", () => {
+  it("以 0.01 L 精度找出首次打和，並處理未計路費和無法打和", () => {
+    const base = config();
+    base.hkShell.manualPrice = 32.6;
+    base.hkCaltex.manualPrice = 50;
+    base.gdShell.manualPrice = { value: 10, scope: "manual", label: "手動價格" };
+    expect(minimumBreakEven(base, fallbackLivePrices, snapshot)).toBe(33.46);
+    base.gdShell.includeToll = false;
+    expect(minimumBreakEven(base, fallbackLivePrices, snapshot)).toBe(0.01);
+    base.hkShell.manualPrice = 20;
+    expect(minimumBreakEven(base, fallbackLivePrices, snapshot)).toBeNull();
+  });
+
+  it("折實預算會跨越券門檻，券數及油錶目標各有自己的精度", () => {
+    const base = config();
+    base.hkCaltex.manualPrice = 36.52;
+    expect(litersForTarget(base, fallbackLivePrices, snapshot, "hk-caltex", "coupons", 2)).toBe(19.17);
+    expect(litersForTarget(base, fallbackLivePrices, snapshot, "hk-caltex", "gross", 350)).toBe(9.58);
+    const liters = litersForTarget(base, fallbackLivePrices, snapshot, "hk-caltex", "cash", 195);
+    expect(liters).toBe(9.65);
+    expect((liters! - 50 / 36.52) * 23.52).toBeLessThanOrEqual(195);
+    expect((9.66 - 50 / 36.52) * 23.52).toBeGreaterThan(195);
+  });
+
+  it("積分與信用卡回贈不改變即場實付及滿額門檻", () => {
+    const base = config();
+    const before = quote(calculateQuotes(base, fallbackLivePrices, snapshot), "hk-shell");
+    base.hkShell.includePoints = true;
+    base.hkShell.rebatePercent = 5;
+    const after = quote(calculateQuotes(base, fallbackLivePrices, snapshot), "hk-shell");
+    expect(after.totalHkd).toBe(before.totalHkd);
+    expect(after.equivalentHkd).toBeLessThan(after.totalHkd);
+  });
+
+  it("加德士不會在油錶未滿 HK$350 時提早用券", () => {
+    const base = config();
+    base.hkCaltex.manualPrice = 36.52;
+    base.hkCaltex.fuel = "standard";
+    const below = quote(calculateQuotes({ ...base, liters: 9.58 }, fallbackLivePrices, snapshot), "hk-caltex");
+    const above = quote(calculateQuotes({ ...base, liters: 9.59 }, fallbackLivePrices, snapshot), "hk-caltex");
+    expect(below.totalHkd).toBeCloseTo(9.58 * (36.52 - 12));
+    expect(above.totalHkd).toBeCloseTo((9.59 - 50 / 36.52) * (36.52 - 12));
+  });
+
   it("愛跑98 路費可獨立關閉並計算回本", () => {
     const base = config();
     base.gdSinopec.includeToll = false;
