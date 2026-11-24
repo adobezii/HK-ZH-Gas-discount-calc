@@ -1,49 +1,49 @@
 {
   "updated": "2026-11-14T01:58:37Z",
   "updated_hkt": "2026-11-14",
-  "checked_at": "2026-11-23T02:14:57Z",
+  "checked_at": "2026-11-24T05:44:25Z",
   "source": "www.qiyoujiage.com",
   "cities": {
     "guangdong/zhuhai.shtml": {
       "name": "珠海",
       "p98": 11.09,
-      "checked_at": "2026-11-23T02:14:57Z",
+      "checked_at": "2026-11-24T05:44:25Z",
       "price_date": "2026-11-14"
     },
     "guangdong/guangzhou.shtml": {
       "name": "廣州",
       "p98": 11.09,
-      "checked_at": "2026-11-23T02:14:57Z",
+      "checked_at": "2026-11-24T05:44:25Z",
       "price_date": "2026-11-14"
     },
     "guangdong/shenzhen.shtml": {
       "name": "深圳",
       "p98": 11.09,
-      "checked_at": "2026-11-23T02:14:57Z",
+      "checked_at": "2026-11-24T05:44:25Z",
       "price_date": "2026-11-14"
     },
     "guangdong/dongguan.shtml": {
       "name": "東莞",
       "p98": 11.09,
-      "checked_at": "2026-11-23T02:14:57Z",
+      "checked_at": "2026-11-24T05:44:25Z",
       "price_date": "2026-11-14"
     },
     "guangdong/foshan.shtml": {
       "name": "佛山",
       "p98": 11.09,
-      "checked_at": "2026-11-23T02:14:57Z",
+      "checked_at": "2026-11-24T05:44:25Z",
       "price_date": "2026-11-14"
     },
     "guangdong/zhongshan.shtml": {
       "name": "中山",
       "p98": 11.09,
-      "checked_at": "2026-11-23T02:14:57Z",
+      "checked_at": "2026-11-24T05:44:25Z",
       "price_date": "2026-11-14"
     },
     "guangdong.shtml": {
       "name": "廣東",
       "p98": 11.09,
-      "checked_at": "2026-11-23T02:14:57Z",
+      "checked_at": "2026-11-24T05:44:25Z",
       "price_date": "2026-11-14"
     }
   }
